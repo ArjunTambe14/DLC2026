@@ -1,6 +1,8 @@
+// Purpose: Reusable card layout primitive.
 import React from 'react';
 
 function Card({ className = '', ...props }) {
+  // Render the UI for this view.
   return (
     <div
       className={`rounded-2xl border border-slate-100 bg-white shadow-sm ${className}`}
