@@ -1,3 +1,4 @@
+// Purpose: Tabs component for grouping admin sections.
 import React from 'react';
 
 const TabsContext = React.createContext(null);
@@ -15,6 +16,7 @@ function Tabs({ defaultValue, value: controlledValue, onValueChange, className =
     }
   };
 
+  // Render the UI for this view.
   return (
     <TabsContext.Provider value={{ value, setValue }}>
       <div className={className}>{children}</div>
