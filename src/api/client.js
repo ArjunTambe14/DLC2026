@@ -1,6 +1,8 @@
+// Purpose: Simple fetch wrapper for local API requests.
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5174/api';
 const TOKEN_KEY = 'streetpulse_token';
 
+// Token helpers keep auth state consistent across refreshes.
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (token) => {
   if (token) {
@@ -11,6 +13,7 @@ export const setToken = (token) => {
 };
 
 const request = async (path, options = {}) => {
+  // Centralize JSON requests so error handling is consistent.
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})
