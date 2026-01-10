@@ -5,7 +5,8 @@ const baseClasses =
 
 const variantClasses = {
   default: 'bg-slate-900 text-white hover:bg-slate-800',
-  outline: 'border border-slate-200 text-slate-900 hover:bg-slate-100'
+  outline: 'border border-slate-200 text-slate-900 hover:bg-slate-100',
+  destructive: 'bg-red-600 text-white hover:bg-red-700'
 };
 
 const sizeClasses = {

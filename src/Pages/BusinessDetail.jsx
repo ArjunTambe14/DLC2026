@@ -1,139 +1,131 @@
-import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/api/client';
+import { useAuth } from '@/context/AuthContext.jsx';
 import { Button } from '@/Components/ui/button';
 import { Textarea } from '@/Components/ui/textarea';
-import { Card } from '@/Components/ui/card';
-import { 
-  MapPin, Phone, Globe, Clock, DollarSign, Star, Heart, 
-  CheckCircle, Tag as TagIcon, Calendar, ExternalLink, Send 
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Badge } from '@/Components/ui/badge';
+import { Input } from '@/Components/ui/input';
+import {
+  MapPin,
+  Phone,
+  Globe,
+  Clock,
+  Star,
+  Heart,
+  CheckCircle,
+  Tag as TagIcon,
+  Calendar,
+  ExternalLink
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import DealCard from '../Components/deal/DealCard';
-import AIChat from '../Components/ai/AIChat';
 
 export default function BusinessDetail() {
-  const [businessId, setBusinessId] = useState(null);
-  const [user, setUser] = useState(null);
+  const [searchParams] = useSearchParams();
+  const businessId = searchParams.get('id');
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const [reviewPage, setReviewPage] = useState(1);
   const [newReview, setNewReview] = useState({ rating: 5, reviewText: '' });
   const [isBookmarked, setIsBookmarked] = useState(false);
-
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('id');
-    setBusinessId(id);
-
-    base44.auth.me().then(setUser).catch(() => setUser(null));
-  }, []);
+  const [challenge, setChallenge] = useState(null);
+  const [challengeAnswer, setChallengeAnswer] = useState('');
 
   const { data: business, isLoading } = useQuery({
     queryKey: ['business', businessId],
-    queryFn: () => base44.entities.Business.filter({ id: businessId }),
-    enabled: !!businessId,
-    select: (data) => data[0]
-  });
-
-  const { data: reviews = [] } = useQuery({
-    queryKey: ['reviews', businessId],
-    queryFn: () => base44.entities.Review.filter({ businessId }, '-created_date'),
+    queryFn: () => api.get(`/businesses/${businessId}`),
     enabled: !!businessId
   });
 
-  const { data: deals = [] } = useQuery({
+  const { data: reviewsData } = useQuery({
+    queryKey: ['reviews', businessId, reviewPage],
+    queryFn: () => api.get(`/businesses/${businessId}/reviews?page=${reviewPage}&pageSize=5`),
+    enabled: !!businessId
+  });
+
+  const { data: dealsData } = useQuery({
     queryKey: ['deals', businessId],
-    queryFn: () => base44.entities.Deal.filter({ businessId }),
+    queryFn: () => api.get(`/deals?businessId=${businessId}&page=1&pageSize=6`),
     enabled: !!businessId
   });
 
-  const { data: bookmarks = [] } = useQuery({
-    queryKey: ['bookmarks', user?.email],
-    queryFn: () => base44.entities.Bookmark.filter({ userEmail: user.email }),
+  const { data: bookmarksData } = useQuery({
+    queryKey: ['bookmarks', user?.id],
+    queryFn: () => api.get('/bookmarks'),
     enabled: !!user
   });
 
   useEffect(() => {
-    if (bookmarks.length > 0 && businessId) {
-      setIsBookmarked(bookmarks.some(b => b.businessId === businessId));
+    if (bookmarksData?.items && businessId) {
+      setIsBookmarked(bookmarksData.items.some((item) => item.id === businessId));
     }
-  }, [bookmarks, businessId]);
+  }, [bookmarksData, businessId]);
+
+  useEffect(() => {
+    if (businessId) {
+      api.get('/verify-challenge?purpose=review').then(setChallenge).catch(() => setChallenge(null));
+    }
+  }, [businessId]);
+
+  const activeDeals = useMemo(() => {
+    const items = dealsData?.items || [];
+    const now = new Date();
+    return items.filter((deal) => new Date(deal.endDate) > now);
+  }, [dealsData]);
+
+  const handleCopyCode = async (deal) => {
+    if (!user) return;
+    try {
+      await api.post(`/deals/${deal.id}/copy`, {});
+    } catch {
+      // Ignore copy errors.
+    }
+  };
+
+  const toggleBookmarkMutation = useMutation({
+    mutationFn: () => api.post(`/bookmarks/${businessId}`, {}),
+    onSuccess: (data) => {
+      setIsBookmarked(data.saved);
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.id] });
+    }
+  });
 
   const createReviewMutation = useMutation({
-    mutationFn: async (reviewData) => {
-      // Check for duplicate review
-      const existingReviews = await base44.entities.Review.filter({
-        businessId,
-        userEmail: user.email
-      });
-
-      if (existingReviews.length > 0) {
-        throw new Error('You have already reviewed this business');
-      }
-
-      // Basic profanity filter
-      const profanity = ['spam', 'scam', 'fake'];
-      const hasProfanity = profanity.some(word => 
-        reviewData.reviewText.toLowerCase().includes(word)
-      );
-
-      if (hasProfanity) {
-        throw new Error('Review contains inappropriate content');
-      }
-
-      return base44.entities.Review.create(reviewData);
-    },
-    onSuccess: async () => {
-      // Recalculate average rating
-      const allReviews = await base44.entities.Review.filter({ businessId });
-      const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
-      
-      await base44.entities.Business.update(businessId, {
-        averageRating: Math.round(avgRating * 10) / 10,
-        reviewCount: allReviews.length
-      });
-
+    mutationFn: (payload) => api.post(`/businesses/${businessId}/reviews`, payload),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews', businessId] });
       queryClient.invalidateQueries({ queryKey: ['business', businessId] });
       setNewReview({ rating: 5, reviewText: '' });
+      setChallengeAnswer('');
+      api.get('/verify-challenge?purpose=review').then(setChallenge).catch(() => setChallenge(null));
     }
   });
 
-  const toggleBookmarkMutation = useMutation({
-    mutationFn: async () => {
-      if (isBookmarked) {
-        const bookmark = bookmarks.find(b => b.businessId === businessId);
-        await base44.entities.Bookmark.delete(bookmark.id);
-      } else {
-        await base44.entities.Bookmark.create({
-          businessId,
-          userEmail: user.email
-        });
-      }
-    },
+  const deleteReviewMutation = useMutation({
+    mutationFn: (reviewId) => api.delete(`/reviews/${reviewId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookmarks', user?.email] });
-      setIsBookmarked(!isBookmarked);
+      queryClient.invalidateQueries({ queryKey: ['reviews', businessId] });
+      queryClient.invalidateQueries({ queryKey: ['business', businessId] });
     }
   });
 
-  const handleSubmitReview = async () => {
+  const handleReviewSubmit = () => {
     if (!user) {
-      base44.auth.redirectToLogin();
       return;
     }
-
-    if (!newReview.reviewText.trim() || newReview.reviewText.length < 10) {
-      alert('Review must be at least 10 characters long');
+    if (!newReview.reviewText.trim() || newReview.reviewText.trim().length < 10) {
+      alert('Review must be at least 10 characters long.');
       return;
     }
-
     createReviewMutation.mutate({
-      businessId,
       rating: newReview.rating,
       reviewText: newReview.reviewText,
-      userName: user.full_name,
-      userEmail: user.email
+      challengeToken: challenge?.token,
+      challengeAnswer
     });
   };
 
@@ -150,12 +142,13 @@ export default function BusinessDetail() {
     );
   }
 
-  const activeDeals = deals.filter(d => new Date(d.endDate) > new Date());
+  const categoryLabel = business.category
+    ? business.category.charAt(0).toUpperCase() + business.category.slice(1)
+    : '';
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -170,7 +163,7 @@ export default function BusinessDetail() {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <DollarSign className="w-32 h-32 text-slate-300" />
+                <TagIcon className="w-32 h-32 text-slate-300" />
               </div>
             )}
             <div className="absolute top-6 right-6 flex gap-3">
@@ -181,18 +174,23 @@ export default function BusinessDetail() {
                 </div>
               )}
               <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-semibold text-slate-700">
-                {business.category}
+                {categoryLabel}
               </div>
+              {business.openNow !== null && (
+                <div className={`px-4 py-2 rounded-full text-sm font-semibold ${business.openNow ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  {business.openNow ? 'Open Now' : 'Closed'}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="p-8">
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-6">
               <div className="flex-1">
                 <h1 className="text-4xl font-bold text-slate-900 mb-3">
                   {business.name}
                 </h1>
-                <div className="flex items-center gap-4 mb-4">
+                <div className="flex flex-wrap items-center gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <Star className="w-6 h-6 fill-amber-400 text-amber-400" />
                     <span className="text-2xl font-bold text-slate-900">
@@ -202,234 +200,247 @@ export default function BusinessDetail() {
                       ({business.reviewCount} {business.reviewCount === 1 ? 'review' : 'reviews'})
                     </span>
                   </div>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-xl font-semibold text-slate-700">
-                    {business.priceLevel}
-                  </span>
+                  <Badge variant="secondary">{business.priceLevel}</Badge>
+                </div>
+                <p className="text-slate-700 mb-6">{business.description}</p>
+                <div className="flex flex-wrap gap-2">
+                  {business.tags?.map((tag) => (
+                    <Badge key={tag} variant="outline">{tag}</Badge>
+                  ))}
                 </div>
               </div>
 
-              {user && (
-                <Button
-                  onClick={() => toggleBookmarkMutation.mutate()}
-                  variant={isBookmarked ? "default" : "outline"}
-                  size="lg"
-                  className={`gap-2 ${isBookmarked ? 'bg-red-600 hover:bg-red-700' : ''}`}
-                >
-                  <Heart className={`w-5 h-5 ${isBookmarked ? 'fill-current' : ''}`} />
-                  {isBookmarked ? 'Saved' : 'Save'}
-                </Button>
-              )}
+              <div className="flex flex-col gap-3 min-w-[220px]">
+                {user ? (
+                  <Button
+                    onClick={() => toggleBookmarkMutation.mutate()}
+                    variant={isBookmarked ? "default" : "outline"}
+                    className={isBookmarked ? 'bg-red-600 hover:bg-red-700' : ''}
+                  >
+                    <Heart className={`w-4 h-4 mr-2 ${isBookmarked ? 'fill-current' : ''}`} />
+                    {isBookmarked ? 'Saved to Favorites' : 'Add to Favorites'}
+                  </Button>
+                ) : (
+                  <Link to="/Auth">
+                    <Button variant="outline">Sign in to Save</Button>
+                  </Link>
+                )}
+              </div>
             </div>
 
-            {business.description && (
-              <p className="text-lg text-slate-700 mb-6 leading-relaxed">
-                {business.description}
-              </p>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MapPin className="w-5 h-5 text-blue-600" />
+                    Location
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-slate-600 space-y-2">
+                  <div>{business.address}</div>
+                  <div>{business.city}, {business.state} {business.zip}</div>
+                </CardContent>
+              </Card>
 
-            {/* Contact Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
-                <MapPin className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-medium text-slate-900 mb-1">Address</div>
-                  <div className="text-slate-600">
-                    {business.address}
-                    <br />
-                    {business.city}, {business.state} {business.zip}
-                  </div>
-                </div>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Clock className="w-5 h-5 text-blue-600" />
+                    Hours
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-slate-600 space-y-2">
+                  <div>{business.hours || 'Hours not listed.'}</div>
+                </CardContent>
+              </Card>
 
-              {business.phone && (
-                <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
-                  <Phone className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-slate-900 mb-1">Phone</div>
-                    <a href={`tel:${business.phone}`} className="text-blue-600 hover:underline">
-                      {business.phone}
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {business.website && (
-                <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
-                  <Globe className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-slate-900 mb-1">Website</div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Phone className="w-5 h-5 text-blue-600" />
+                    Contact
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-slate-600 space-y-2">
+                  <div>{business.phone}</div>
+                  {business.website && (
                     <a
                       href={business.website}
                       target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline flex items-center gap-1"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700"
                     >
-                      Visit website <ExternalLink className="w-3 h-3" />
+                      Visit Website <ExternalLink className="w-3 h-3" />
                     </a>
-                  </div>
-                </div>
-              )}
+                  )}
+                </CardContent>
+              </Card>
 
-              {business.hours && (
-                <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
-                  <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-medium text-slate-900 mb-1">Hours</div>
-                    <div className="text-slate-600">{business.hours}</div>
-                  </div>
-                </div>
-              )}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Globe className="w-5 h-5 text-blue-600" />
+                    Quick Info
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-slate-600 space-y-2">
+                  <div>Category: {categoryLabel}</div>
+                  <div>Price Level: {business.priceLevel}</div>
+                </CardContent>
+              </Card>
             </div>
-
-            {/* Tags */}
-            {business.tags && business.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {business.tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="px-3 py-1.5 bg-blue-100 text-blue-700 text-sm font-medium rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </motion.div>
 
+        {/* Gallery */}
+        {business.gallery?.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-lg p-8 mb-8">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Photo Gallery</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {business.gallery.map((image, index) => (
+                <img
+                  key={`${image}-${index}`}
+                  src={image}
+                  alt={`${business.name} gallery ${index + 1}`}
+                  className="rounded-2xl object-cover h-64 w-full"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active Deals */}
+        <div className="bg-white rounded-3xl shadow-lg p-8 mb-8">
+          <div className="flex items-center gap-2 mb-6">
+            <TagIcon className="w-5 h-5 text-orange-500" />
+            <h2 className="text-2xl font-bold text-slate-900">Active Deals</h2>
+          </div>
+          {activeDeals.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {activeDeals.map((deal, index) => (
+                <DealCard key={deal.id} deal={deal} index={index} onCopyCode={handleCopyCode} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-600">No active deals right now. Check back soon.</p>
+          )}
+        </div>
+
+        {/* Reviews */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Active Deals */}
-            {activeDeals.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <div className="flex items-center gap-2 mb-4">
-                  <TagIcon className="w-6 h-6 text-orange-600" />
-                  <h2 className="text-2xl font-bold text-slate-900">
-                    Active Deals
-                  </h2>
-                </div>
-                <div className="space-y-4">
-                  {activeDeals.map((deal, index) => (
-                    <DealCard key={deal.id} deal={deal} business={business} index={index} />
-                  ))}
-                </div>
-              </motion.div>
-            )}
+          <div className="lg:col-span-2 bg-white rounded-3xl shadow-lg p-8">
+            <div className="flex items-center gap-2 mb-6">
+              <Star className="w-5 h-5 text-amber-500" />
+              <h2 className="text-2xl font-bold text-slate-900">Reviews</h2>
+            </div>
 
-            {/* Reviews Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                Reviews ({reviews.length})
-              </h2>
-
-              {/* Add Review */}
-              {user && (
-                <Card className="p-6 mb-6 bg-slate-50 border-2 border-slate-200">
-                  <h3 className="font-semibold text-slate-900 mb-4">Write a Review</h3>
-                  
-                  {/* Star Rating */}
-                  <div className="flex gap-2 mb-4">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        onClick={() => setNewReview(prev => ({ ...prev, rating: star }))}
-                        className="transition-transform hover:scale-110"
-                      >
-                        <Star
-                          className={`w-8 h-8 ${
-                            star <= newReview.rating
-                              ? 'fill-amber-400 text-amber-400'
-                              : 'text-slate-300'
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-
-                  <Textarea
-                    placeholder="Share your experience... (minimum 10 characters)"
-                    value={newReview.reviewText}
-                    onChange={(e) => setNewReview(prev => ({ ...prev, reviewText: e.target.value }))}
-                    className="mb-4 min-h-32"
-                  />
-
-                  <Button
-                    onClick={handleSubmitReview}
-                    disabled={createReviewMutation.isPending || newReview.reviewText.length < 10}
-                    className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    {createReviewMutation.isPending ? 'Submitting...' : 'Submit Review'}
-                  </Button>
-
-                  {createReviewMutation.isError && (
-                    <p className="text-red-600 text-sm mt-2">
-                      {createReviewMutation.error.message}
-                    </p>
-                  )}
-                </Card>
-              )}
-
-              {/* Reviews List */}
-              <div className="space-y-4">
-                {reviews.map((review) => (
-                  <Card key={review.id} className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="font-semibold text-slate-900 mb-1">
-                          {review.userName}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i < review.rating
-                                  ? 'fill-amber-400 text-amber-400'
-                                  : 'text-slate-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="text-sm text-slate-500">
-                        {new Date(review.created_date).toLocaleDateString()}
+            {(reviewsData?.items || []).length > 0 ? (
+              <div className="space-y-6">
+                {(reviewsData?.items || []).map((review) => (
+                  <div key={review.id} className="border-b border-slate-200 pb-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-semibold text-slate-900">{review.userName}</div>
+                      <div className="flex items-center gap-2 text-amber-500">
+                        <Star className="w-4 h-4 fill-amber-400" />
+                        <span>{review.rating}</span>
+                        {user?.role === 'admin' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-2"
+                            onClick={() => deleteReviewMutation.mutate(review.id)}
+                          >
+                            Remove
+                          </Button>
+                        )}
                       </div>
                     </div>
                     <p className="text-slate-700">{review.reviewText}</p>
-                  </Card>
-                ))}
-
-                {reviews.length === 0 && (
-                  <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-slate-200">
-                    <Star className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500">No reviews yet. Be the first to review!</p>
+                    <div className="text-xs text-slate-500 mt-2">
+                      {new Date(review.createdAt).toLocaleDateString()}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
-            </motion.div>
+            ) : (
+              <p className="text-slate-600">No reviews yet. Be the first to share your experience.</p>
+            )}
+
+            {reviewsData?.pagination?.totalPages > 1 && (
+              <div className="flex items-center gap-3 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setReviewPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={reviewsData.pagination.page === 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-slate-600">
+                  Page {reviewsData.pagination.page} of {reviewsData.pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={() => setReviewPage((prev) => Math.min(prev + 1, reviewsData.pagination.totalPages))}
+                  disabled={reviewsData.pagination.page === reviewsData.pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* AI Chat */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <AIChat business={business} reviews={reviews} deals={activeDeals} />
-            </motion.div>
+          <div className="bg-white rounded-3xl shadow-lg p-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              <h3 className="text-xl font-bold text-slate-900">Leave a Review</h3>
+            </div>
+
+            {user ? (
+              <>
+                <label className="text-sm font-medium text-slate-700">Rating</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={newReview.rating}
+                  onChange={(e) => setNewReview({ ...newReview, rating: Number(e.target.value) })}
+                  className="mt-2"
+                />
+
+                <label className="text-sm font-medium text-slate-700 mt-4 block">Your Review</label>
+                <Textarea
+                  value={newReview.reviewText}
+                  onChange={(e) => setNewReview({ ...newReview, reviewText: e.target.value })}
+                  placeholder="Share what stood out about this business."
+                  rows={4}
+                  className="mt-2"
+                />
+
+                {challenge && (
+                  <div className="mt-4 space-y-2">
+                    <label className="text-sm font-medium text-slate-700">Verification</label>
+                    <div className="text-xs text-slate-500">{challenge.question}</div>
+                    <Input
+                      value={challengeAnswer}
+                      onChange={(e) => setChallengeAnswer(e.target.value)}
+                      placeholder="Enter your answer"
+                    />
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleReviewSubmit}
+                  className="mt-6 w-full"
+                  disabled={createReviewMutation.isLoading}
+                >
+                  Submit Review
+                </Button>
+              </>
+            ) : (
+              <div className="text-sm text-slate-600">
+                Please <Link to="/Auth" className="text-blue-600 hover:text-blue-700">sign in</Link> to leave a review.
+              </div>
+            )}
           </div>
         </div>
       </div>

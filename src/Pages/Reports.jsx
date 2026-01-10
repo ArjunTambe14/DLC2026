@@ -1,196 +1,128 @@
 import React from 'react';
-import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Download, TrendingUp, Heart, Tag, MessageCircle } from 'lucide-react';
+import { BarChart3, Download, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { api, getToken } from '@/api/client';
+import { useAuth } from '@/context/AuthContext.jsx';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#0ea5e9', '#14b8a6'];
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5174/api';
+
+const downloadCsv = async (type) => {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/reports/${type}.csv`, {
+    headers: { Authorization: token ? `Bearer ${token}` : '' }
+  });
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${type}.csv`;
+  link.click();
+};
 
 export default function Reports() {
-  const { data: businesses = [] } = useQuery({
-    queryKey: ['businesses'],
-    queryFn: () => base44.entities.Business.list()
+  const { user, loading } = useAuth();
+
+  const { data: topRated } = useQuery({
+    queryKey: ['reports', 'top-rated'],
+    queryFn: () => api.get('/reports/top-rated?minReviews=3'),
+    enabled: user?.role === 'admin'
   });
 
-  const { data: reviews = [] } = useQuery({
-    queryKey: ['reviews'],
-    queryFn: () => base44.entities.Review.list()
+  const { data: mostReviewed } = useQuery({
+    queryKey: ['reports', 'most-reviewed'],
+    queryFn: () => api.get('/reports/most-reviewed'),
+    enabled: user?.role === 'admin'
   });
 
-  const { data: deals = [] } = useQuery({
-    queryKey: ['deals'],
-    queryFn: () => base44.entities.Deal.list()
+  const { data: favorites } = useQuery({
+    queryKey: ['reports', 'favorites'],
+    queryFn: () => api.get('/reports/favorites'),
+    enabled: user?.role === 'admin'
   });
 
-  const { data: bookmarks = [] } = useQuery({
-    queryKey: ['bookmarks'],
-    queryFn: () => base44.entities.Bookmark.list()
+  const { data: deals } = useQuery({
+    queryKey: ['reports', 'deals'],
+    queryFn: () => api.get('/reports/deals'),
+    enabled: user?.role === 'admin'
   });
 
-  // Top rated businesses
-  const topRated = [...businesses]
-    .filter(b => b.reviewCount > 0)
-    .sort((a, b) => b.averageRating - a.averageRating)
-    .slice(0, 10);
-
-  // Most bookmarked
-  const bookmarkCounts = {};
-  bookmarks.forEach(bookmark => {
-    bookmarkCounts[bookmark.businessId] = (bookmarkCounts[bookmark.businessId] || 0) + 1;
+  const { data: categories } = useQuery({
+    queryKey: ['reports', 'category-distribution'],
+    queryFn: () => api.get('/reports/category-distribution'),
+    enabled: user?.role === 'admin'
   });
 
-  const mostBookmarked = businesses
-    .map(business => ({
-      ...business,
-      bookmarkCount: bookmarkCounts[business.id] || 0
-    }))
-    .filter(b => b.bookmarkCount > 0)
-    .sort((a, b) => b.bookmarkCount - a.bookmarkCount)
-    .slice(0, 10);
-
-  // Business by category
-  const categoryCounts = {};
-  businesses.forEach(business => {
-    categoryCounts[business.category] = (categoryCounts[business.category] || 0) + 1;
+  const { data: weekly } = useQuery({
+    queryKey: ['reports', 'weekly-activity'],
+    queryFn: () => api.get('/reports/weekly-activity'),
+    enabled: user?.role === 'admin'
   });
 
-  const categoryData = Object.entries(categoryCounts).map(([name, value]) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    value
-  }));
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Review sentiment
-  const sentimentData = [
-    { name: 'Positive', value: reviews.filter(r => r.rating >= 4).length, color: '#10b981' },
-    { name: 'Neutral', value: reviews.filter(r => r.rating === 3).length, color: '#f59e0b' },
-    { name: 'Negative', value: reviews.filter(r => r.rating <= 2).length, color: '#ef4444' }
-  ];
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
+        <div className="text-center bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
+          <BarChart3 className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Admin Access Required</h2>
+          <p className="text-slate-600">Sign in with an admin account to view reports.</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Deal performance
-  const topDeals = [...deals]
-    .sort((a, b) => (b.viewCount + b.saveCount * 2) - (a.viewCount + a.saveCount * 2))
-    .slice(0, 10);
-
-  // Export to CSV
-  const exportToCSV = () => {
-    const csvData = [
-      ['Business Name', 'Category', 'Rating', 'Reviews', 'Bookmarks'],
-      ...businesses.map(b => [
-        b.name,
-        b.category,
-        b.averageRating,
-        b.reviewCount,
-        bookmarkCounts[b.id] || 0
-      ])
-    ];
-
-    const csv = csvData.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'business-report.csv';
-    a.click();
-  };
-
-  const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1'];
+  const categoryData = categories?.items || [];
+  const weeklyDataMap = new Map();
+  (weekly?.items || []).forEach((row) => {
+    if (!weeklyDataMap.has(row.week)) {
+      weeklyDataMap.set(row.week, { week: row.week });
+    }
+    weeklyDataMap.get(row.week)[row.metric] = row.count;
+  });
+  const weeklyData = Array.from(weeklyDataMap.values()).sort((a, b) => a.week.localeCompare(b.week));
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <BarChart3 className="w-8 h-8 text-blue-600" />
-              <h1 className="text-4xl font-bold text-slate-900">
-                Analytics & Reports
-              </h1>
+              <h1 className="text-4xl font-bold text-slate-900">Analytics & Reports</h1>
             </div>
-            <p className="text-lg text-slate-600">
-              Data insights and business performance metrics
-            </p>
+            <p className="text-lg text-slate-600">Admin insights for performance and growth.</p>
           </div>
-          <Button onClick={exportToCSV} className="gap-2 bg-green-600 hover:bg-green-700">
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">
-                Total Businesses
-              </CardTitle>
-              <TrendingUp className="w-4 h-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{businesses.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">
-                Total Reviews
-              </CardTitle>
-              <MessageCircle className="w-4 h-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{reviews.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">
-                Total Bookmarks
-              </CardTitle>
-              <Heart className="w-4 h-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">{bookmarks.length}</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600">
-                Active Deals
-              </CardTitle>
-              <Tag className="w-4 h-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-slate-900">
-                {deals.filter(d => new Date(d.endDate) > new Date()).length}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Businesses by Category */}
           <Card>
-            <CardHeader>
-              <CardTitle>Businesses by Category</CardTitle>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Category Distribution</CardTitle>
+              <Button variant="outline" onClick={() => downloadCsv('category-distribution')}>
+                <Download className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
+                  <Pie data={categoryData} dataKey="business_count" nameKey="category" outerRadius={110} label>
                     {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={entry.category} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -199,121 +131,124 @@ export default function Reports() {
             </CardContent>
           </Card>
 
-          {/* Review Sentiment */}
           <Card>
-            <CardHeader>
-              <CardTitle>Review Sentiment</CardTitle>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Weekly Activity</CardTitle>
+              <Button variant="outline" onClick={() => downloadCsv('weekly-activity')}>
+                <Download className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={sentimentData}>
+                <LineChart data={weeklyData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
+                  <XAxis dataKey="week" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                    {sentimentData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                  <Legend />
+                  <Line type="monotone" dataKey="users" stroke="#3b82f6" />
+                  <Line type="monotone" dataKey="reviews" stroke="#10b981" />
+                  <Line type="monotone" dataKey="favorites" stroke="#ef4444" />
+                  <Line type="monotone" dataKey="deal_interactions" stroke="#f59e0b" />
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
 
-        {/* Top Rated Businesses */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Top Rated Businesses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topRated.map((business, index) => (
-                <div key={business.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="text-2xl font-bold text-slate-400">#{index + 1}</div>
-                    <div>
-                      <div className="font-semibold text-slate-900">{business.name}</div>
-                      <div className="text-sm text-slate-600">{business.category}</div>
-                    </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Top Rated Businesses</CardTitle>
+              <Button variant="outline" onClick={() => downloadCsv('top-rated')}>
+                <Download className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(topRated?.items || []).map((row, index) => (
+                <div key={row.name} className="flex items-center justify-between bg-slate-50 rounded-lg p-4">
+                  <div>
+                    <div className="font-semibold text-slate-900">#{index + 1} {row.name}</div>
+                    <div className="text-sm text-slate-600">{row.category}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-amber-600">{business.averageRating.toFixed(1)} ⭐</div>
-                    <div className="text-sm text-slate-600">{business.reviewCount} reviews</div>
-                  </div>
+                  <div className="text-sm text-slate-700">{row.average_rating} ({row.review_count} reviews)</div>
                 </div>
               ))}
-              {topRated.length === 0 && (
-                <p className="text-center text-slate-500 py-8">No rated businesses yet</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Most Bookmarked */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Most Bookmarked Businesses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mostBookmarked.map((business, index) => (
-                <div key={business.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="text-2xl font-bold text-slate-400">#{index + 1}</div>
-                    <div>
-                      <div className="font-semibold text-slate-900">{business.name}</div>
-                      <div className="text-sm text-slate-600">{business.category}</div>
-                    </div>
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Most Reviewed Businesses</CardTitle>
+              <Button variant="outline" onClick={() => downloadCsv('most-reviewed')}>
+                <Download className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(mostReviewed?.items || []).map((row, index) => (
+                <div key={row.name} className="flex items-center justify-between bg-slate-50 rounded-lg p-4">
+                  <div>
+                    <div className="font-semibold text-slate-900">#{index + 1} {row.name}</div>
+                    <div className="text-sm text-slate-600">{row.category}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-red-600">{business.bookmarkCount} ❤️</div>
-                    <div className="text-sm text-slate-600">bookmarks</div>
-                  </div>
+                  <div className="text-sm text-slate-700">{row.review_count} reviews</div>
                 </div>
               ))}
-              {mostBookmarked.length === 0 && (
-                <p className="text-center text-slate-500 py-8">No bookmarked businesses yet</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* Top Performing Deals */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Performing Deals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topDeals.map((deal, index) => (
-                <div key={deal.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="text-2xl font-bold text-slate-400">#{index + 1}</div>
-                    <div>
-                      <div className="font-semibold text-slate-900">{deal.title}</div>
-                      <div className="text-sm text-slate-600">{deal.category}</div>
-                    </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Favorites Leaderboard</CardTitle>
+              <Button variant="outline" onClick={() => downloadCsv('favorites')}>
+                <Download className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {(favorites?.items || []).map((row, index) => (
+                <div key={row.name} className="flex items-center justify-between bg-slate-50 rounded-lg p-4">
+                  <div>
+                    <div className="font-semibold text-slate-900">#{index + 1} {row.name}</div>
+                    <div className="text-sm text-slate-600">{row.category}</div>
                   </div>
-                  <div className="flex gap-6 text-sm">
-                    <div className="text-right">
-                      <div className="font-semibold text-slate-900">{deal.viewCount || 0}</div>
-                      <div className="text-slate-600">views</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-slate-900">{deal.saveCount || 0}</div>
-                      <div className="text-slate-600">saves</div>
-                    </div>
-                  </div>
+                  <div className="text-sm text-slate-700">{row.favorite_count} favorites</div>
                 </div>
               ))}
-              {topDeals.length === 0 && (
-                <p className="text-center text-slate-500 py-8">No deals yet</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle>Top Deals</CardTitle>
+              <Button variant="outline" onClick={() => downloadCsv('deals')}>
+                <Download className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={deals?.items || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="title" hide />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="copy_count" fill="#f59e0b" />
+                  <Bar dataKey="view_count" fill="#0ea5e9" />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Most redeemed/clicked deals (copies vs views)
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

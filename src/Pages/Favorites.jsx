@@ -1,39 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import React, { useState } from 'react';
+import { api } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
 import { Heart, Search } from 'lucide-react';
 import { Input } from '@/Components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import BusinessCard from '../Components/business/BusinessCard';
+import { useAuth } from '@/context/AuthContext.jsx';
+import { Link } from 'react-router-dom';
 
 export default function Favorites() {
-  const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    base44.auth.me()
-      .then(setUser)
-      .catch(() => {
-        base44.auth.redirectToLogin(window.location.href);
-      });
-  }, []);
-
-  const { data: bookmarks = [] } = useQuery({
-    queryKey: ['userBookmarks', user?.email],
-    queryFn: () => base44.entities.Bookmark.filter({ userEmail: user.email }),
+  const { data } = useQuery({
+    queryKey: ['userBookmarks', user?.id],
+    queryFn: () => api.get('/bookmarks'),
     enabled: !!user
   });
 
-  const { data: allBusinesses = [] } = useQuery({
-    queryKey: ['allBusinesses'],
-    queryFn: () => base44.entities.Business.list()
-  });
-
-  // Get bookmarked businesses
-  const bookmarkedBusinesses = allBusinesses.filter(business =>
-    bookmarks.some(bookmark => bookmark.businessId === business.id)
-  );
+  const bookmarkedBusinesses = data?.items || [];
 
   // Filter and sort
   const filteredBusinesses = bookmarkedBusinesses
@@ -53,17 +39,30 @@ export default function Favorites() {
         return a.name.localeCompare(b.name);
       } else {
         // newest bookmark
-        const bookmarkA = bookmarks.find(bm => bm.businessId === a.id);
-        const bookmarkB = bookmarks.find(bm => bm.businessId === b.id);
-        return new Date(bookmarkB.created_date) - new Date(bookmarkA.created_date);
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
       }
     });
 
-  if (!user) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
         <div className="text-center">
           <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
+        <div className="text-center bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
+          <Heart className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Save your favorites</h2>
+          <p className="text-slate-600 mb-6">Sign in to bookmark the businesses you love.</p>
+          <Link to="/Auth" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+            Sign In
+          </Link>
         </div>
       </div>
     );

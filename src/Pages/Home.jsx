@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -13,22 +13,31 @@ import DealCard from '../Components/deal/DealCard';
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: businesses = [] } = useQuery({
-    queryKey: ['businesses'],
-    queryFn: () => base44.entities.Business.list('-created_date', 6)
+  const { data: businessData = { items: [] } } = useQuery({
+    queryKey: ['businesses', 'featured'],
+    queryFn: () => api.get('/businesses?page=1&pageSize=6&sort=newest')
   });
 
-  const { data: deals = [] } = useQuery({
+  const { data: dealData = { items: [] } } = useQuery({
     queryKey: ['featuredDeals'],
-    queryFn: () => base44.entities.Deal.list('-created_date', 3)
+    queryFn: () => api.get('/deals?page=1&pageSize=6')
   });
+
+  const businesses = businessData.items || [];
+  const deals = dealData.items || [];
+  const activeDeals = deals.filter((deal) => new Date(deal.endDate) > new Date());
+  const businessTotal = businessData.pagination?.total || businesses.length;
+  const dealTotal = activeDeals.length;
 
   const categories = [
     { name: 'Food', icon: '🍕', color: 'from-orange-400 to-red-500', value: 'food' },
-    { name: 'Retail', icon: '🛍️', color: 'from-pink-400 to-purple-500', value: 'retail' },
-    { name: 'Services', icon: '⚙️', color: 'from-blue-400 to-cyan-500', value: 'services' },
+    { name: 'Retail', icon: '🛍️', color: 'from-pink-400 to-rose-500', value: 'retail' },
+    { name: 'Services', icon: '🧰', color: 'from-blue-400 to-cyan-500', value: 'services' },
     { name: 'Health', icon: '💊', color: 'from-green-400 to-emerald-500', value: 'health' },
-    { name: 'Entertainment', icon: '🎬', color: 'from-purple-400 to-pink-500', value: 'entertainment' },
+    { name: 'Auto', icon: '🚗', color: 'from-slate-500 to-gray-700', value: 'auto' },
+    { name: 'Beauty', icon: '💇‍♀️', color: 'from-rose-400 to-pink-500', value: 'beauty' },
+    { name: 'Entertainment', icon: '🎬', color: 'from-purple-400 to-indigo-500', value: 'entertainment' },
+    { name: 'Home', icon: '🏡', color: 'from-emerald-400 to-teal-500', value: 'home' },
     { name: 'Other', icon: '📦', color: 'from-slate-400 to-slate-500', value: 'other' }
   ];
 
@@ -51,11 +60,6 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="text-center max-w-4xl mx-auto"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full mb-6 border border-white/20">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-medium">Powered by LocalLift AI</span>
-            </div>
-            
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               Discover & Support
               <br />
@@ -65,7 +69,7 @@ export default function Home() {
             </h1>
             
             <p className="text-xl md:text-2xl text-blue-100 mb-10 leading-relaxed">
-              Find amazing local businesses, read reviews, and unlock exclusive deals—all in one place.
+              StreetPulse brings trusted reviews, active deals, and local favorites together in one place.
             </p>
 
             {/* Search Bar */}
@@ -97,7 +101,7 @@ export default function Home() {
                 transition={{ delay: 0.2 }}
                 className="text-center"
               >
-                <div className="text-3xl font-bold mb-1">{businesses.length}+</div>
+                <div className="text-3xl font-bold mb-1">{businessTotal}+</div>
                 <div className="text-sm text-blue-200">Local Businesses</div>
               </motion.div>
               <motion.div
@@ -106,7 +110,7 @@ export default function Home() {
                 transition={{ delay: 0.3 }}
                 className="text-center"
               >
-                <div className="text-3xl font-bold mb-1">{deals.length}+</div>
+                <div className="text-3xl font-bold mb-1">{dealTotal}+</div>
                 <div className="text-sm text-blue-200">Active Deals</div>
               </motion.div>
               <motion.div
@@ -115,8 +119,8 @@ export default function Home() {
                 transition={{ delay: 0.4 }}
                 className="text-center"
               >
-                <div className="text-3xl font-bold mb-1">AI</div>
-                <div className="text-sm text-blue-200">Powered</div>
+                <div className="text-3xl font-bold mb-1">25+</div>
+                <div className="text-sm text-blue-200">Categories & Tags</div>
               </motion.div>
             </div>
           </motion.div>
@@ -135,7 +139,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-4">
             {categories.map((category, index) => (
               <motion.div
                 key={category.value}
@@ -195,7 +199,7 @@ export default function Home() {
       </section>
 
       {/* Featured Deals */}
-      {deals.length > 0 && (
+      {activeDeals.length > 0 && (
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-8">
@@ -203,22 +207,22 @@ export default function Home() {
                 <div className="flex items-center gap-2 mb-2">
                   <Tag className="w-6 h-6 text-orange-600" />
                   <h2 className="text-3xl font-bold text-slate-900">
-                    Hot Deals Right Now
+                    Active Deals
                   </h2>
                 </div>
                 <p className="text-slate-600">
-                  Don't miss out on these exclusive offers
+                  Grab community specials before they expire
                 </p>
               </div>
               <Link to={createPageUrl('DealsHub')}>
                 <Button variant="outline" className="gap-2">
-                  All Deals <ArrowRight className="w-4 h-4" />
+                  View All Deals <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {deals.map((deal, index) => (
+              {activeDeals.map((deal, index) => (
                 <DealCard key={deal.id} deal={deal} index={index} />
               ))}
             </div>
@@ -236,15 +240,14 @@ export default function Home() {
           >
             <Sparkles className="w-12 h-12 mx-auto mb-6 text-blue-400" />
             <h2 className="text-4xl font-bold mb-6">
-              Experience AI-Powered Discovery
+              Build a stronger local economy
             </h2>
             <p className="text-xl text-slate-300 mb-8 leading-relaxed">
-              LocalLift AI helps you find the perfect local business based on your preferences, 
-              answers your questions, and recommends the best deals—all intelligently.
+              Every review, favorite, and visit helps local businesses thrive. Join the community today.
             </p>
             <Link to={createPageUrl('Businesses')}>
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-6">
-                Start Exploring
+                Explore Businesses
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </Link>

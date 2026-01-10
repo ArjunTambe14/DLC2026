@@ -5,6 +5,10 @@ import { MapPin, Phone, Star, CheckCircle, DollarSign } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function BusinessCard({ business, index = 0 }) {
+  const categoryLabel = business.category
+    ? business.category.charAt(0).toUpperCase() + business.category.slice(1)
+    : '';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -33,8 +37,13 @@ export default function BusinessCard({ business, index = 0 }) {
               </div>
             )}
             <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium text-slate-700">
-              {business.category}
+              {categoryLabel}
             </div>
+            {business.openNow !== null && (
+              <div className={`absolute bottom-3 left-3 px-2 py-1 rounded-full text-xs font-semibold ${business.openNow ? 'bg-green-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                {business.openNow ? 'Open Now' : 'Closed'}
+              </div>
+            )}
           </div>
 
           {/* Content */}

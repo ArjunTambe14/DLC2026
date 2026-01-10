@@ -1,73 +1,102 @@
-Project Overview
+# StreetPulse
 
-Byte-Sized Business Boost is a standalone application that helps users discover and support small, local businesses in their community. The program allows users to browse businesses by category, view and leave reviews, save favorite businesses, and find special deals or coupons. The goal of this project is to increase visibility for local businesses while giving users an easy and intuitive way to support them.
+StreetPulse is a standalone local-business discovery app built for the FBLA 2025–2026 Coding & Programming event theme, “Byte-Sized Business Boost.” It helps community members find trusted local businesses, see real reviews, and unlock active deals.
 
-This project was developed in accordance with the FBLA 2025–2026 Coding & Programming competitive event guidelines.
+## Core Features
+- Local business directory with category, keyword, and open-now filters
+- Sort by highest rated, most reviewed, or newest
+- Business detail pages with photo galleries, deals, and reviews
+- Favorites/bookmarks for signed-in users
+- Deals hub with category and expiring-soon filters
+- Human verification challenge for sign-up and review submission
+- Admin dashboard for CRUD + moderation + reports
+- Exportable analytics reports (CSV)
 
-Problem Statement
+## Tech Stack
+- Frontend: React + Vite + Tailwind + React Query
+- Backend: Node.js + Express
+- Database: SQLite (better-sqlite3)
+- Auth: JWT + bcrypt password hashing
 
-Many small businesses struggle to gain attention compared to larger companies. This application provides a centralized tool that helps users find local businesses, evaluate them through ratings and reviews, and stay informed about discounts and special offers.
+## Local Setup
+1. Install dependencies:
+   ```
+   npm install
+   ```
+2. Copy environment variables:
+   ```
+   cp .env.example .env
+   ```
+3. Seed the database:
+   ```
+   npm run seed
+   ```
+4. Start the backend and frontend:
+   ```
+   npm run dev:full
+   ```
+5. Open the app:
+   - `http://localhost:5173`
 
-Features
+## Admin Login
+Default admin credentials (from seed script):
+- Email: `admin@streetpulse.local`
+- Password: `StreetPulseAdmin!`
 
-Sort businesses by category (food, retail, services, etc.)
+Update admin credentials in `.env` and re-run `npm run seed` to regenerate.
 
-Leave and view user ratings and reviews
+## Seed Data
+- 25+ businesses across 9 categories
+- 40+ active deals
+- Sample reviews for rating distribution
 
-Sort businesses by rating or number of reviews
+## Reports & Analytics
+Admin-only analytics include:
+- Top businesses by average rating (min review threshold)
+- Most reviewed businesses
+- Favorites leaderboard
+- Most redeemed/clicked deals
+- Category distribution
+- Weekly activity (users, reviews, favorites, deal interactions)
 
-Save or bookmark favorite businesses
+Each report is viewable in-app and exportable via CSV download.
 
-Display special deals or coupons
+## Verification / Bot Prevention
+StreetPulse requires a lightweight human verification challenge:
+- During account creation
+- During review submission
 
-Verification step to help prevent bot activity
+Challenges are validated server-side and expire after 10 minutes.
 
-Input validation to prevent errors and crashes
+## Environment Variables
+- `PORT` — backend port (default `5174`)
+- `JWT_SECRET` — JWT signing secret
+- `ADMIN_EMAIL` — seed admin email
+- `ADMIN_PASSWORD` — seed admin password
+- `CORS_ORIGIN` — allowed frontend origin
+- `VITE_API_URL` — frontend API base URL
 
-Programming Language & Tools
+## Assets & Licensing
+Business images use royalty-free Unsplash URLs (see `server/seed.js`). Replace with your own assets as needed.
 
-Language: Python
+## Demo Script (7 minutes)
+1. Open home page, show categories and active deals.
+2. Search for “coffee,” filter to Food, toggle Open Now.
+3. Open a business detail page, show gallery + reviews.
+4. Sign up with verification challenge and submit a review.
+5. Save a business to Favorites and show Favorites list.
+6. Visit Deals Hub, filter by category and expiring soon, copy a coupon.
+7. Admin login, open Admin Dashboard, add/edit a business and deal.
+8. Open Reports, show charts and export CSV.
 
-Libraries: Python standard libraries only
+## Folder Structure
+```
+server/            Express + SQLite backend
+src/               React frontend
+src/Pages/          Route pages
+src/Components/     UI and feature components
+```
 
-Platform: Standalone application (runs locally)
-
-Python was selected due to its readability, efficient data handling, and support for modular programming and clean logic.
-
-Program Design
-
-Modular structure using functions for organization and readability
-
-Lists and dictionaries used for structured data storage
-
-Clear variable naming with logical scope
-
-Input validation for both data format and meaning
-
-Error handling to ensure smooth execution without crashes
-
-User Experience (UX)
-
-Simple, menu-based interface
-
-Clear instructions displayed at each step
-
-Logical and intuitive user flow
-
-Accessible text-based design
-
-Output & Data
-
-Displays organized business listings
-
-Shows ratings, reviews, and available deals
-
-Updates data dynamically as users interact with the program
-
-Allows users to analyze businesses by category and rating
-
-Verification & Security
-
-Includes a basic verification step to reduce automated or bot-like activity
-
-Ensures user actions are intentional and valid
+## Notes
+- The app runs locally without external services.
+- “Powered by AI” is intentionally omitted from the UI.
