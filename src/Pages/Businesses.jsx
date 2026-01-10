@@ -1,3 +1,4 @@
+// Purpose: Browse and filter businesses from the API.
 import React, { useState, useEffect } from 'react';
 import { api } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
@@ -52,6 +53,7 @@ export default function Businesses() {
     setPage(1);
   }, [searchTerm]);
 
+  // Render the UI for this view.
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
