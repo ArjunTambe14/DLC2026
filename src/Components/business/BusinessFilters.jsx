@@ -1,6 +1,6 @@
 import React from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
+import { Input } from "@/Components/ui/input";
 import { Search, Filter } from 'lucide-react';
 
 export default function BusinessFilters({ filters, onFilterChange, onSearchChange, searchTerm }) {

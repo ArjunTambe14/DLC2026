@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
 import { Search, TrendingUp, Award, Tag, ArrowRight, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
-import BusinessCard from '../components/business/BusinessCard';
-import DealCard from '../components/deal/DealCard';
+import BusinessCard from '../Components/business/BusinessCard';
+import DealCard from '../Components/deal/DealCard';
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');

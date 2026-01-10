@@ -1,7 +1,7 @@
 import React from 'react';
 import { format, isAfter, isBefore } from 'date-fns';
 import { Tag, Calendar, Copy, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/Components/ui/button';
 import { motion } from 'framer-motion';
 
 export default function DealCard({ deal, business, onCopyCode, index = 0 }) {

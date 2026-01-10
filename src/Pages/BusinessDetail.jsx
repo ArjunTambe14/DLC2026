@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/Components/ui/button';
+import { Textarea } from '@/Components/ui/textarea';
+import { Card } from '@/Components/ui/card';
 import { 
   MapPin, Phone, Globe, Clock, DollarSign, Star, Heart, 
   CheckCircle, Tag as TagIcon, Calendar, ExternalLink, Send 
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import DealCard from '../components/deal/DealCard';
-import AIChat from '../components/ai/AIChat';
+import DealCard from '../Components/deal/DealCard';
+import AIChat from '../Components/ai/AIChat';
 
 export default function BusinessDetail() {
   const [businessId, setBusinessId] = useState(null);

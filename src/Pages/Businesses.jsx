@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
-import BusinessCard from '../components/business/BusinessCard';
-import BusinessFilters from '../components/business/BusinessFilters';
+import BusinessCard from '../Components/business/BusinessCard';
+import BusinessFilters from '../Components/business/BusinessFilters';
 import { Building2 } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/Components/ui/skeleton';
 
 export default function Businesses() {
   const [filters, setFilters] = useState({
