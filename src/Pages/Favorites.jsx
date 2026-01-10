@@ -1,3 +1,4 @@
+// Purpose: Shows saved businesses from local favorites.
 import React, { useState } from 'react';
 import { api } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
@@ -26,6 +27,7 @@ export default function Favorites() {
     .filter(business => {
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
+      // Render the UI for this view.
       return (
         business.name.toLowerCase().includes(search) ||
         business.description?.toLowerCase().includes(search) ||
