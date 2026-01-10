@@ -1,3 +1,4 @@
+// Purpose: Card UI for a single business listing.
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../../utils';
@@ -9,6 +10,7 @@ export default function BusinessCard({ business, index = 0 }) {
     ? business.category.charAt(0).toUpperCase() + business.category.slice(1)
     : '';
 
+  // Render the UI for this view.
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
