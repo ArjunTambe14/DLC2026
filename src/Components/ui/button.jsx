@@ -1,3 +1,4 @@
+// Purpose: Reusable button styles for consistent UI.
 import React from 'react';
 
 const baseClasses =
@@ -28,6 +29,7 @@ const Button = React.forwardRef(function Button(
     .filter(Boolean)
     .join(' ');
 
+  // Render the UI for this view.
   return <button ref={ref} className={classes} {...props} />;
 });
 
