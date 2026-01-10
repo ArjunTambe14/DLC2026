@@ -1,7 +1,9 @@
+// Purpose: Project overview and mission.
 import React from 'react';
 import { Sparkles, HeartHandshake, MapPin } from 'lucide-react';
 
 export default function About() {
+  // Render the UI for this view.
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
