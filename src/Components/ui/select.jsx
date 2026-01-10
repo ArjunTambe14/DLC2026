@@ -1,6 +1,8 @@
+// Purpose: Reusable select styling.
 import React from 'react';
 
 const SelectItem = ({ value, children }) => {
+  // Render the UI for this view.
   return (
     <option value={value}>
       {children}
