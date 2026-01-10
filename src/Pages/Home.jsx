@@ -50,7 +50,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-white py-20 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-[#02142c] via-[#237ca7] to-[#f18316] text-white py-20 overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxIDAgNiAyLjY5IDYgNnMtMi42OSA2LTYgNi02LTIuNjktNi02IDIuNjktNiA2LTZ6TTI0IDZjMy4zMSAwIDYgMi42OSA2IDZzLTIuNjkgNi02IDYtNi0yLjY5LTYtNiAyLjY5LTYgNi02eiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L2c+PC9zdmc+')] opacity-30" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -87,7 +87,7 @@ export default function Home() {
               <Button
                 onClick={handleSearch}
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 h-14 px-8 text-base font-semibold shadow-lg"
+                className="bg-[#f18316] hover:bg-[#d96f12] h-14 px-8 text-base font-semibold shadow-lg"
               >
                 Search
               </Button>
@@ -167,7 +167,7 @@ export default function Home() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-6 h-6 text-blue-600" />
+                <TrendingUp className="w-6 h-6 text-[#237ca7]" />
                 <h2 className="text-3xl font-bold text-slate-900">
                   Recently Added
                 </h2>
@@ -205,7 +205,7 @@ export default function Home() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Tag className="w-6 h-6 text-orange-600" />
+                  <Tag className="w-6 h-6 text-[#f18316]" />
                   <h2 className="text-3xl font-bold text-slate-900">
                     Active Deals
                   </h2>
@@ -231,14 +231,14 @@ export default function Home() {
       )}
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+      <section className="py-20 bg-gradient-to-br from-[#02142c] to-[#237ca7] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Sparkles className="w-12 h-12 mx-auto mb-6 text-blue-400" />
+            <Sparkles className="w-12 h-12 mx-auto mb-6 text-[#f18316]" />
             <h2 className="text-4xl font-bold mb-6">
               Build a stronger local economy
             </h2>
@@ -246,7 +246,7 @@ export default function Home() {
               Every review, favorite, and visit helps local businesses thrive. Join the community today.
             </p>
             <Link to={createPageUrl('Businesses')}>
-              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-6">
+              <Button size="lg" className="bg-[#f18316] hover:bg-[#d96f12] text-lg px-8 py-6">
                 Explore Businesses
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>

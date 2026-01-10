@@ -5,8 +5,12 @@
 @layer base {
   :root {
     font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: #0f172a;
-    background-color: #f8fafc;
+    color: #02142c;
+    background-color: #ffffff;
+    --sp-orange: #f18316;
+    --sp-blue: #237ca7;
+    --sp-navy: #02142c;
+    --sp-white: #ffffff;
   }
 
   * {
