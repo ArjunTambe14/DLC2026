@@ -1,6 +1,8 @@
+// Purpose: Friendly prompt when actions require a user account.
 import React from 'react';
 
 const UserNotRegisteredError = () => {
+  // Render the UI for this view.
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-white to-slate-50">
       <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-lg border border-slate-100">
