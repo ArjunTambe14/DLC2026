@@ -1,3 +1,4 @@
+// Purpose: Bookmark entity schema for API typing.
 {
   "name": "Bookmark",
   "type": "object",
