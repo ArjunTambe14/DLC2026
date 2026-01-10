@@ -43,7 +43,12 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link to={createPageUrl('Home')} className="flex items-center gap-2 group">
+            <Link to={createPageUrl('Home')} className="flex items-center gap-3 group">
+              <img
+                src="/src/pictures/Logo.png"
+                alt="StreetPulse logo"
+                className="h-10 w-auto"
+              />
               <div className="hidden sm:block">
                 <div className="text-xl font-bold text-slate-900">StreetPulse</div>
                 <div className="text-xs text-[#237ca7] font-medium -mt-1">Local Business Discovery</div>
