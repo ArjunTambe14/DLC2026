@@ -1,3 +1,4 @@
+// Purpose: Sign-in and registration flow for demo users.
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext.jsx';
 import { api } from '@/api/client';
@@ -51,6 +52,7 @@ export default function Auth() {
     }
   };
 
+  // Render the UI for this view.
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
