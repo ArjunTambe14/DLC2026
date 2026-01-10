@@ -1,3 +1,4 @@
+// Purpose: Deal entity schema for API typing.
 {
   "name": "Deal",
   "type": "object",
