@@ -47,8 +47,8 @@ export default function DealCard({ deal, business, onCopyCode, index = 0 }) {
           </div>
           <div>
             <h3 className="font-bold text-slate-900 text-lg">{deal.title}</h3>
-            {business && (
-              <p className="text-sm text-slate-600">{business.name}</p>
+            {(business?.name || deal.businessName) && (
+              <p className="text-sm text-slate-600">{business?.name || deal.businessName}</p>
             )}
           </div>
         </div>
@@ -65,6 +65,17 @@ export default function DealCard({ deal, business, onCopyCode, index = 0 }) {
 
       {/* Description */}
       <p className="text-slate-700 mb-4">{deal.description}</p>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <span className="px-2.5 py-1 bg-white text-slate-800 text-xs font-semibold rounded-full border border-slate-200">
+          {deal.discountValue}
+        </span>
+        {deal.terms && (
+          <span className="px-2.5 py-1 bg-white text-slate-600 text-xs rounded-full border border-slate-200">
+            {deal.terms}
+          </span>
+        )}
+      </div>
 
       {/* Coupon Code */}
       {deal.couponCode && (
@@ -108,7 +119,9 @@ export default function DealCard({ deal, business, onCopyCode, index = 0 }) {
       <div className="flex items-center justify-between text-sm text-slate-600 pt-4 border-t border-slate-200">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4" />
-          <span>Expires: {format(new Date(deal.endDate), 'MMM d, yyyy')}</span>
+          <span>
+            {format(new Date(deal.startDate), 'MMM d')} - {format(new Date(deal.endDate), 'MMM d, yyyy')}
+          </span>
         </div>
         <div className="flex items-center gap-3 text-xs">
           <span>{deal.viewCount || 0} views</span>

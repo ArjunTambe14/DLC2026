@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { base44 } from '@/api/base44Client';
 import { Home, Building2, Heart, Tag, BarChart3, Settings, Menu, X, Sparkles } from 'lucide-react';
+import { useAuth } from './context/AuthContext.jsx';
 
 export default function Layout({ children, currentPageName }) {
-  const [user, setUser] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    base44.auth.me().then(setUser).catch(() => setUser(null));
-  }, []);
+  const { user, logout } = useAuth();
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = createPageUrl('Home');
+  };
 
   const navItems = [
     { name: 'Home', page: 'Home', icon: Home },
@@ -19,7 +19,12 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Deals', page: 'DealsHub', icon: Tag },
     { name: 'Reports', page: 'Reports', icon: BarChart3 },
     { name: 'Admin', page: 'AdminPanel', icon: Settings }
-  ];
+  ].filter((item) => {
+    if ((item.page === 'Reports' || item.page === 'AdminPanel') && user?.role !== 'admin') {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
@@ -43,8 +48,8 @@ export default function Layout({ children, currentPageName }) {
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div className="hidden sm:block">
-                <div className="text-xl font-bold text-slate-900">Byte-Sized</div>
-                <div className="text-xs text-blue-600 font-medium -mt-1">Business Boost</div>
+                <div className="text-xl font-bold text-slate-900">StreetPulse</div>
+                <div className="text-xs text-blue-600 font-medium -mt-1">Local Business Discovery</div>
               </div>
             </Link>
 
@@ -75,23 +80,23 @@ export default function Layout({ children, currentPageName }) {
               {user ? (
                 <div className="flex items-center gap-3">
                   <div className="text-sm">
-                    <div className="font-medium text-slate-900">{user.full_name}</div>
+                    <div className="font-medium text-slate-900">{user.fullName}</div>
                     <div className="text-xs text-slate-500">{user.role}</div>
                   </div>
                   <button
-                    onClick={() => base44.auth.logout()}
+                    onClick={handleLogout}
                     className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
                   >
                     Logout
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => base44.auth.redirectToLogin()}
+                <Link
+                  to={createPageUrl('Auth')}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
                 >
                   Sign In
-                </button>
+                </Link>
               )}
             </div>
 
@@ -130,18 +135,18 @@ export default function Layout({ children, currentPageName }) {
               })}
               {user ? (
                 <button
-                  onClick={() => base44.auth.logout()}
+                  onClick={handleLogout}
                   className="w-full text-left px-4 py-3 text-slate-700 hover:bg-slate-100 rounded-lg font-medium"
                 >
                   Logout
                 </button>
               ) : (
-                <button
-                  onClick={() => base44.auth.redirectToLogin()}
+                <Link
+                  to={createPageUrl('Auth')}
                   className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
                 >
                   Sign In
-                </button>
+                </Link>
               )}
             </div>
           </div>
@@ -159,13 +164,8 @@ export default function Layout({ children, currentPageName }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="font-bold text-lg">Byte-Sized Business Boost</div>
-                  <div className="text-xs text-blue-400">Powered by LocalLift AI</div>
-                </div>
+                <Sparkles className="w-6 h-6 text-blue-400" />
+                <div className="font-bold text-lg">StreetPulse</div>
               </div>
               <p className="text-slate-400 text-sm">
                 Discover and support amazing local businesses in your community.
@@ -174,10 +174,10 @@ export default function Layout({ children, currentPageName }) {
             <div>
               <h3 className="font-semibold mb-3">Quick Links</h3>
               <div className="space-y-2 text-sm text-slate-400">
-                <div>About Us</div>
-                <div>Contact</div>
-                <div>Privacy Policy</div>
-                <div>Terms of Service</div>
+                <Link to={createPageUrl('About')} className="block hover:text-white transition-colors">About Us</Link>
+                <Link to={createPageUrl('Contact')} className="block hover:text-white transition-colors">Contact</Link>
+                <Link to={createPageUrl('Privacy')} className="block hover:text-white transition-colors">Privacy Policy</Link>
+                <Link to={createPageUrl('Terms')} className="block hover:text-white transition-colors">Terms of Service</Link>
               </div>
             </div>
             <div>
@@ -188,7 +188,7 @@ export default function Layout({ children, currentPageName }) {
             </div>
           </div>
           <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-500">
-            © 2024 Byte-Sized Business Boost. Built for FBLA.
+            © 2026 StreetPulse. Built for the FBLA Coding & Programming event.
           </div>
         </div>
       </footer>

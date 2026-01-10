@@ -1,48 +1,43 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
 import { Tag, Filter } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import DealCard from '../Components/deal/DealCard';
-import { isBefore } from 'date-fns';
+import { useAuth } from '@/context/AuthContext.jsx';
+import { Button } from '@/Components/ui/button';
 
 export default function DealsHub() {
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('active');
+  const [expiringSoon, setExpiringSoon] = useState(false);
+  const [page, setPage] = useState(1);
+  const { user } = useAuth();
 
-  const { data: deals = [], isLoading } = useQuery({
-    queryKey: ['allDeals'],
-    queryFn: () => base44.entities.Deal.list('-created_date')
+  const { data, isLoading } = useQuery({
+    queryKey: ['allDeals', categoryFilter, expiringSoon, page],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (categoryFilter !== 'all') params.set('category', categoryFilter);
+      if (expiringSoon) params.set('expiringSoon', 'true');
+      params.set('page', String(page));
+      params.set('pageSize', '9');
+      return api.get(`/deals?${params.toString()}`);
+    }
   });
 
-  const { data: businesses = [] } = useQuery({
-    queryKey: ['businesses'],
-    queryFn: () => base44.entities.Business.list()
-  });
+  const deals = data?.items || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
 
-  // Get business for each deal
-  const dealsWithBusiness = deals.map(deal => ({
-    ...deal,
-    business: businesses.find(b => b.id === deal.businessId)
-  }));
+  const categories = ['all', 'food', 'retail', 'services', 'health', 'auto', 'beauty', 'entertainment', 'home', 'other'];
 
-  // Filter deals
-  const filteredDeals = dealsWithBusiness.filter(deal => {
-    const now = new Date();
-    const endDate = new Date(deal.endDate);
-    const isActive = isBefore(now, endDate);
-
-    // Status filter
-    if (statusFilter === 'active' && !isActive) return false;
-    if (statusFilter === 'expired' && isActive) return false;
-
-    // Category filter
-    if (categoryFilter !== 'all' && deal.category !== categoryFilter) return false;
-
-    return true;
-  });
-
-  const categories = ['all', 'food', 'retail', 'services', 'health', 'entertainment', 'other'];
+  const handleCopyCode = async (deal) => {
+    if (!user) return;
+    try {
+      await api.post(`/deals/${deal.id}/copy`, {});
+    } catch {
+      // Ignore copy failures for now.
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">
@@ -67,9 +62,15 @@ export default function DealsHub() {
             <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Category Filter */}
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <Select
+              value={categoryFilter}
+              onValueChange={(value) => {
+                setCategoryFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
@@ -82,24 +83,25 @@ export default function DealsHub() {
               </SelectContent>
             </Select>
 
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Deals</SelectItem>
-                <SelectItem value="active">Active Only</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-              </SelectContent>
-            </Select>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                checked={expiringSoon}
+                onChange={(e) => {
+                  setExpiringSoon(e.target.checked);
+                  setPage(1);
+                }}
+              />
+              Expiring Soon (7 days)
+            </label>
           </div>
         </div>
 
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{filteredDeals.length}</span> deals
+            Showing <span className="font-semibold text-slate-900">{pagination.total}</span> deals
           </p>
         </div>
 
@@ -110,14 +112,14 @@ export default function DealsHub() {
               <div key={i} className="bg-white rounded-2xl p-6 h-64 animate-pulse" />
             ))}
           </div>
-        ) : filteredDeals.length > 0 ? (
+        ) : deals.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDeals.map((deal, index) => (
+            {deals.map((deal, index) => (
               <DealCard
                 key={deal.id}
                 deal={deal}
-                business={deal.business}
                 index={index}
+                onCopyCode={handleCopyCode}
               />
             ))}
           </div>
@@ -130,6 +132,28 @@ export default function DealsHub() {
             <p className="text-slate-500">
               Try adjusting your filters or check back later for new offers
             </p>
+          </div>
+        )}
+
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-10">
+            <Button
+              variant="outline"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={pagination.page === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-slate-600">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
+              disabled={pagination.page === pagination.totalPages}
+            >
+              Next
+            </Button>
           </div>
         )}
       </div>

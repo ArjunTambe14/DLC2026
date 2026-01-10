@@ -1,475 +1,353 @@
 import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Textarea } from '@/Components/ui/textarea';
-import { Label } from '@/Components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
-import { Settings, Plus, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Settings, Plus, Trash2, Pencil } from 'lucide-react';
+import { api } from '@/api/client';
+import { useAuth } from '@/context/AuthContext.jsx';
+
+const categoryOptions = ['food', 'retail', 'services', 'health', 'auto', 'beauty', 'entertainment', 'home', 'other'];
+
+const emptyBusiness = {
+  name: '',
+  category: 'food',
+  address: '',
+  city: '',
+  state: '',
+  zip: '',
+  phone: '',
+  website: '',
+  hours: '',
+  priceLevel: '$$',
+  tags: '',
+  description: '',
+  verifiedBadge: false,
+  imageUrl: '',
+  gallery: ''
+};
+
+const emptyDeal = {
+  businessId: '',
+  title: '',
+  description: '',
+  discountValue: '',
+  startDate: '',
+  endDate: '',
+  terms: '',
+  couponCode: '',
+  redemptionInstructions: '',
+  category: 'food'
+};
 
 export default function AdminPanel() {
+  const { user, loading } = useAuth();
   const queryClient = useQueryClient();
+  const [businessForm, setBusinessForm] = useState(emptyBusiness);
+  const [dealForm, setDealForm] = useState(emptyDeal);
+  const [editingBusinessId, setEditingBusinessId] = useState(null);
+  const [editingDealId, setEditingDealId] = useState(null);
 
-  // Business Form State
-  const [businessForm, setBusinessForm] = useState({
-    name: '',
-    category: 'food',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    phone: '',
-    website: '',
-    hours: '',
-    priceLevel: '$$',
-    tags: '',
-    description: '',
-    verifiedBadge: false,
-    imageUrl: ''
+  const { data: businessData } = useQuery({
+    queryKey: ['adminBusinesses'],
+    queryFn: () => api.get('/businesses?page=1&pageSize=100&sort=newest'),
+    enabled: user?.role === 'admin'
   });
 
-  // Deal Form State
-  const [dealForm, setDealForm] = useState({
-    businessId: '',
-    title: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    couponCode: '',
-    redemptionInstructions: '',
-    category: 'food'
+  const { data: dealData } = useQuery({
+    queryKey: ['adminDeals'],
+    queryFn: () => api.get('/deals?page=1&pageSize=100'),
+    enabled: user?.role === 'admin'
   });
 
-  const createBusinessMutation = useMutation({
-    mutationFn: (data) => {
-      const formattedData = {
-        ...data,
-        tags: data.tags ? data.tags.split(',').map(t => t.trim()) : [],
-        averageRating: 0,
-        reviewCount: 0
-      };
-      return base44.entities.Business.create(formattedData);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['businesses'] });
-      queryClient.invalidateQueries({ queryKey: ['allBusinesses'] });
-      setBusinessForm({
-        name: '',
-        category: 'food',
-        address: '',
-        city: '',
-        state: '',
-        zip: '',
-        phone: '',
-        website: '',
-        hours: '',
-        priceLevel: '$$',
-        tags: '',
-        description: '',
-        verifiedBadge: false,
-        imageUrl: ''
-      });
-      alert('Business created successfully!');
+  const { data: reviewData } = useQuery({
+    queryKey: ['adminReviews'],
+    queryFn: () => api.get('/admin/reviews'),
+    enabled: user?.role === 'admin'
+  });
+
+  const businesses = businessData?.items || [];
+  const deals = dealData?.items || [];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
+        <div className="text-center bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
+          <Settings className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Admin Access Required</h2>
+          <p className="text-slate-600">Sign in with an admin account to manage content.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleBusinessSubmit = async (event) => {
+    event.preventDefault();
+    const payload = {
+      ...businessForm,
+      tags: businessForm.tags ? businessForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : [],
+      gallery: businessForm.gallery ? businessForm.gallery.split(',').map((url) => url.trim()).filter(Boolean) : []
+    };
+    if (editingBusinessId) {
+      await api.put(`/businesses/${editingBusinessId}`, payload);
+    } else {
+      await api.post('/businesses', payload);
     }
-  });
-
-  const createDealMutation = useMutation({
-    mutationFn: (data) => base44.entities.Deal.create({ ...data, viewCount: 0, saveCount: 0 }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['featuredDeals'] });
-      setDealForm({
-        businessId: '',
-        title: '',
-        description: '',
-        startDate: '',
-        endDate: '',
-        couponCode: '',
-        redemptionInstructions: '',
-        category: 'food'
-      });
-      alert('Deal created successfully!');
-    }
-  });
-
-  const handleBusinessSubmit = (e) => {
-    e.preventDefault();
-    
-    // Validation
-    if (!businessForm.name || !businessForm.city || !businessForm.state) {
-      alert('Please fill in required fields: Name, City, State');
-      return;
-    }
-
-    createBusinessMutation.mutate(businessForm);
+    setBusinessForm(emptyBusiness);
+    setEditingBusinessId(null);
+    queryClient.invalidateQueries({ queryKey: ['adminBusinesses'] });
   };
 
-  const handleDealSubmit = (e) => {
-    e.preventDefault();
-
-    // Validation
-    if (!dealForm.businessId || !dealForm.title || !dealForm.endDate) {
-      alert('Please fill in required fields: Business ID, Title, End Date');
-      return;
+  const handleDealSubmit = async (event) => {
+    event.preventDefault();
+    if (editingDealId) {
+      await api.put(`/deals/${editingDealId}`, dealForm);
+    } else {
+      await api.post('/deals', dealForm);
     }
+    setDealForm(emptyDeal);
+    setEditingDealId(null);
+    queryClient.invalidateQueries({ queryKey: ['adminDeals'] });
+  };
 
-    if (dealForm.startDate && new Date(dealForm.endDate) <= new Date(dealForm.startDate)) {
-      alert('End date must be after start date');
-      return;
-    }
+  const handleEditBusiness = (biz) => {
+    setEditingBusinessId(biz.id);
+    setBusinessForm({
+      name: biz.name || '',
+      category: biz.category || 'food',
+      address: biz.address || '',
+      city: biz.city || '',
+      state: biz.state || '',
+      zip: biz.zip || '',
+      phone: biz.phone || '',
+      website: biz.website || '',
+      hours: biz.hours || '',
+      priceLevel: biz.priceLevel || '$$',
+      tags: (biz.tags || []).join(', '),
+      description: biz.description || '',
+      verifiedBadge: Boolean(biz.verifiedBadge),
+      imageUrl: biz.imageUrl || '',
+      gallery: (biz.gallery || []).join(', ')
+    });
+  };
 
-    createDealMutation.mutate(dealForm);
+  const handleEditDeal = (deal) => {
+    setEditingDealId(deal.id);
+    setDealForm({
+      businessId: deal.businessId || '',
+      title: deal.title || '',
+      description: deal.description || '',
+      discountValue: deal.discountValue || '',
+      startDate: deal.startDate || '',
+      endDate: deal.endDate || '',
+      terms: deal.terms || '',
+      couponCode: deal.couponCode || '',
+      redemptionInstructions: deal.redemptionInstructions || '',
+      category: deal.category || 'food'
+    });
+  };
+
+  const handleDeleteBusiness = async (id) => {
+    await api.delete(`/businesses/${id}`);
+    queryClient.invalidateQueries({ queryKey: ['adminBusinesses'] });
+  };
+
+  const handleDeleteDeal = async (id) => {
+    await api.delete(`/deals/${id}`);
+    queryClient.invalidateQueries({ queryKey: ['adminDeals'] });
   };
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center gap-3 mb-2">
-            <Settings className="w-8 h-8 text-blue-600" />
-            <h1 className="text-4xl font-bold text-slate-900">
-              Admin Panel
-            </h1>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3 mb-8">
+          <Settings className="w-8 h-8 text-blue-600" />
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900">Admin Dashboard</h1>
+            <p className="text-slate-600">Manage businesses, deals, and reviews.</p>
           </div>
-          <p className="text-lg text-slate-600">
-            Manage businesses and deals
-          </p>
-        </motion.div>
+        </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="business" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 bg-white">
-            <TabsTrigger value="business" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900">
-              Add Business
-            </TabsTrigger>
-            <TabsTrigger value="deal" className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-900">
-              Add Deal
-            </TabsTrigger>
+        <Tabs defaultValue="businesses" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 bg-white">
+            <TabsTrigger value="businesses">Businesses</TabsTrigger>
+            <TabsTrigger value="deals">Deals</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
           </TabsList>
 
-          {/* Add Business */}
-          <TabsContent value="business">
-            <Card>
+          <TabsContent value="businesses">
+            <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Plus className="w-5 h-5" />
-                  Create New Business
+                  {editingBusinessId ? 'Edit Business' : 'Add Business'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleBusinessSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="name">Business Name *</Label>
-                      <Input
-                        id="name"
-                        value={businessForm.name}
-                        onChange={(e) => setBusinessForm({ ...businessForm, name: e.target.value })}
-                        placeholder="Joe's Coffee Shop"
-                        required
+                <form onSubmit={handleBusinessSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input placeholder="Business name" value={businessForm.name} onChange={(e) => setBusinessForm({ ...businessForm, name: e.target.value })} required />
+                  <Select value={businessForm.category} onValueChange={(value) => setBusinessForm({ ...businessForm, category: value })}>
+                    <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                    <SelectContent>
+                      {categoryOptions.map((category) => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input placeholder="Address" value={businessForm.address} onChange={(e) => setBusinessForm({ ...businessForm, address: e.target.value })} />
+                  <Input placeholder="City" value={businessForm.city} onChange={(e) => setBusinessForm({ ...businessForm, city: e.target.value })} required />
+                  <Input placeholder="State" value={businessForm.state} onChange={(e) => setBusinessForm({ ...businessForm, state: e.target.value })} required />
+                  <Input placeholder="ZIP" value={businessForm.zip} onChange={(e) => setBusinessForm({ ...businessForm, zip: e.target.value })} />
+                  <Input placeholder="Phone" value={businessForm.phone} onChange={(e) => setBusinessForm({ ...businessForm, phone: e.target.value })} />
+                  <Input placeholder="Website" value={businessForm.website} onChange={(e) => setBusinessForm({ ...businessForm, website: e.target.value })} />
+                  <Input placeholder="Hours (e.g. Mon-Fri 8am-6pm)" value={businessForm.hours} onChange={(e) => setBusinessForm({ ...businessForm, hours: e.target.value })} />
+                  <Input placeholder="Price Level ($$)" value={businessForm.priceLevel} onChange={(e) => setBusinessForm({ ...businessForm, priceLevel: e.target.value })} />
+                  <Input placeholder="Tags (comma separated)" value={businessForm.tags} onChange={(e) => setBusinessForm({ ...businessForm, tags: e.target.value })} />
+                  <Input placeholder="Image URL" value={businessForm.imageUrl} onChange={(e) => setBusinessForm({ ...businessForm, imageUrl: e.target.value })} />
+                  <Input placeholder="Gallery URLs (comma separated)" value={businessForm.gallery} onChange={(e) => setBusinessForm({ ...businessForm, gallery: e.target.value })} />
+                  <Textarea className="md:col-span-2" placeholder="Description" value={businessForm.description} onChange={(e) => setBusinessForm({ ...businessForm, description: e.target.value })} />
+                  <div className="md:col-span-2 flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        checked={businessForm.verifiedBadge}
+                        onChange={(e) => setBusinessForm({ ...businessForm, verifiedBadge: e.target.checked })}
                       />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="category">Category *</Label>
-                      <Select
-                        value={businessForm.category}
-                        onValueChange={(value) => setBusinessForm({ ...businessForm, category: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="food">Food</SelectItem>
-                          <SelectItem value="retail">Retail</SelectItem>
-                          <SelectItem value="services">Services</SelectItem>
-                          <SelectItem value="health">Health</SelectItem>
-                          <SelectItem value="entertainment">Entertainment</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="address">Address</Label>
-                      <Input
-                        id="address"
-                        value={businessForm.address}
-                        onChange={(e) => setBusinessForm({ ...businessForm, address: e.target.value })}
-                        placeholder="123 Main St"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="city">City *</Label>
-                      <Input
-                        id="city"
-                        value={businessForm.city}
-                        onChange={(e) => setBusinessForm({ ...businessForm, city: e.target.value })}
-                        placeholder="Springfield"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="state">State *</Label>
-                      <Input
-                        id="state"
-                        value={businessForm.state}
-                        onChange={(e) => setBusinessForm({ ...businessForm, state: e.target.value })}
-                        placeholder="IL"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="zip">ZIP Code</Label>
-                      <Input
-                        id="zip"
-                        value={businessForm.zip}
-                        onChange={(e) => setBusinessForm({ ...businessForm, zip: e.target.value })}
-                        placeholder="62701"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={businessForm.phone}
-                        onChange={(e) => setBusinessForm({ ...businessForm, phone: e.target.value })}
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="website">Website</Label>
-                      <Input
-                        id="website"
-                        type="url"
-                        value={businessForm.website}
-                        onChange={(e) => setBusinessForm({ ...businessForm, website: e.target.value })}
-                        placeholder="https://joescoffee.com"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="hours">Hours</Label>
-                      <Input
-                        id="hours"
-                        value={businessForm.hours}
-                        onChange={(e) => setBusinessForm({ ...businessForm, hours: e.target.value })}
-                        placeholder="Mon-Fri 9AM-5PM"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="priceLevel">Price Level</Label>
-                      <Select
-                        value={businessForm.priceLevel}
-                        onValueChange={(value) => setBusinessForm({ ...businessForm, priceLevel: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="$">$ (Budget)</SelectItem>
-                          <SelectItem value="$$">$$ (Moderate)</SelectItem>
-                          <SelectItem value="$$$">$$$ (Upscale)</SelectItem>
-                          <SelectItem value="$$$$">$$$$ (Luxury)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="imageUrl">Image URL</Label>
-                      <Input
-                        id="imageUrl"
-                        value={businessForm.imageUrl}
-                        onChange={(e) => setBusinessForm({ ...businessForm, imageUrl: e.target.value })}
-                        placeholder="https://images.unsplash.com/..."
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="tags">Tags (comma-separated)</Label>
-                      <Input
-                        id="tags"
-                        value={businessForm.tags}
-                        onChange={(e) => setBusinessForm({ ...businessForm, tags: e.target.value })}
-                        placeholder="coffee, breakfast, wifi"
-                      />
-                    </div>
+                      Verified Badge
+                    </label>
+                    <Button type="submit">{editingBusinessId ? 'Update Business' : 'Create Business'}</Button>
                   </div>
-
-                  <div>
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={businessForm.description}
-                      onChange={(e) => setBusinessForm({ ...businessForm, description: e.target.value })}
-                      placeholder="A cozy coffee shop serving fresh pastries..."
-                      className="min-h-24"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="verified"
-                      checked={businessForm.verifiedBadge}
-                      onChange={(e) => setBusinessForm({ ...businessForm, verifiedBadge: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <Label htmlFor="verified" className="cursor-pointer">
-                      Verified Business
-                    </Label>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={createBusinessMutation.isPending}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    {createBusinessMutation.isPending ? 'Creating...' : 'Create Business'}
-                  </Button>
                 </form>
               </CardContent>
             </Card>
+
+            <div className="space-y-4">
+              {businesses.map((biz) => (
+                <Card key={biz.id}>
+                  <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 py-4">
+                    <div>
+                      <div className="font-semibold text-slate-900">{biz.name}</div>
+                      <div className="text-sm text-slate-600">{biz.category} • {biz.city}, {biz.state}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => handleEditBusiness(biz)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button variant="destructive" onClick={() => handleDeleteBusiness(biz.id)}>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
 
-          {/* Add Deal */}
-          <TabsContent value="deal">
-            <Card>
+          <TabsContent value="deals">
+            <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  Create New Deal
+                  <Plus className="w-5 h-5" />
+                  {editingDealId ? 'Edit Deal' : 'Add Deal'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleDealSubmit} className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-blue-800">
-                      <strong>Tip:</strong> Get the Business ID from the business detail page URL (e.g., ?id=abc123)
-                    </p>
+                <form onSubmit={handleDealSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Select value={dealForm.businessId} onValueChange={(value) => setDealForm({ ...dealForm, businessId: value })}>
+                    <SelectTrigger><SelectValue placeholder="Select business" /></SelectTrigger>
+                    <SelectContent>
+                      {businesses.map((biz) => (
+                        <SelectItem key={biz.id} value={biz.id}>{biz.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={dealForm.category} onValueChange={(value) => setDealForm({ ...dealForm, category: value })}>
+                    <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
+                    <SelectContent>
+                      {categoryOptions.map((category) => (
+                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input placeholder="Title" value={dealForm.title} onChange={(e) => setDealForm({ ...dealForm, title: e.target.value })} required />
+                  <Input placeholder="Discount value (e.g. 15% off)" value={dealForm.discountValue} onChange={(e) => setDealForm({ ...dealForm, discountValue: e.target.value })} required />
+                  <Input type="date" value={dealForm.startDate} onChange={(e) => setDealForm({ ...dealForm, startDate: e.target.value })} required />
+                  <Input type="date" value={dealForm.endDate} onChange={(e) => setDealForm({ ...dealForm, endDate: e.target.value })} required />
+                  <Input placeholder="Coupon code" value={dealForm.couponCode} onChange={(e) => setDealForm({ ...dealForm, couponCode: e.target.value })} />
+                  <Input placeholder="Redemption instructions" value={dealForm.redemptionInstructions} onChange={(e) => setDealForm({ ...dealForm, redemptionInstructions: e.target.value })} />
+                  <Input placeholder="Terms" value={dealForm.terms} onChange={(e) => setDealForm({ ...dealForm, terms: e.target.value })} />
+                  <Textarea className="md:col-span-2" placeholder="Description" value={dealForm.description} onChange={(e) => setDealForm({ ...dealForm, description: e.target.value })} />
+                  <div className="md:col-span-2 flex justify-end">
+                    <Button type="submit">{editingDealId ? 'Update Deal' : 'Create Deal'}</Button>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="businessId">Business ID *</Label>
-                      <Input
-                        id="businessId"
-                        value={dealForm.businessId}
-                        onChange={(e) => setDealForm({ ...dealForm, businessId: e.target.value })}
-                        placeholder="Business ID"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="dealCategory">Category *</Label>
-                      <Select
-                        value={dealForm.category}
-                        onValueChange={(value) => setDealForm({ ...dealForm, category: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="food">Food</SelectItem>
-                          <SelectItem value="retail">Retail</SelectItem>
-                          <SelectItem value="services">Services</SelectItem>
-                          <SelectItem value="health">Health</SelectItem>
-                          <SelectItem value="entertainment">Entertainment</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <Label htmlFor="dealTitle">Deal Title *</Label>
-                      <Input
-                        id="dealTitle"
-                        value={dealForm.title}
-                        onChange={(e) => setDealForm({ ...dealForm, title: e.target.value })}
-                        placeholder="50% Off Your First Order"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="startDate">Start Date</Label>
-                      <Input
-                        id="startDate"
-                        type="date"
-                        value={dealForm.startDate}
-                        onChange={(e) => setDealForm({ ...dealForm, startDate: e.target.value })}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="endDate">End Date *</Label>
-                      <Input
-                        id="endDate"
-                        type="date"
-                        value={dealForm.endDate}
-                        onChange={(e) => setDealForm({ ...dealForm, endDate: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <Label htmlFor="couponCode">Coupon Code</Label>
-                      <Input
-                        id="couponCode"
-                        value={dealForm.couponCode}
-                        onChange={(e) => setDealForm({ ...dealForm, couponCode: e.target.value })}
-                        placeholder="WELCOME50"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="dealDescription">Description *</Label>
-                    <Textarea
-                      id="dealDescription"
-                      value={dealForm.description}
-                      onChange={(e) => setDealForm({ ...dealForm, description: e.target.value })}
-                      placeholder="Get 50% off your first order when you sign up..."
-                      className="min-h-24"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="redemption">Redemption Instructions</Label>
-                    <Textarea
-                      id="redemption"
-                      value={dealForm.redemptionInstructions}
-                      onChange={(e) => setDealForm({ ...dealForm, redemptionInstructions: e.target.value })}
-                      placeholder="Show this coupon code at checkout..."
-                      className="min-h-20"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={createDealMutation.isPending}
-                    className="w-full bg-orange-600 hover:bg-orange-700"
-                  >
-                    {createDealMutation.isPending ? 'Creating...' : 'Create Deal'}
-                  </Button>
                 </form>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-4">
+              {deals.map((deal) => (
+                <Card key={deal.id}>
+                  <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 py-4">
+                    <div>
+                      <div className="font-semibold text-slate-900">{deal.title}</div>
+                      <div className="text-sm text-slate-600">{deal.businessName} • {deal.discountValue}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => handleEditDeal(deal)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button variant="destructive" onClick={() => handleDeleteDeal(deal.id)}>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="reviews">
+            <Card>
+              <CardHeader>
+                <CardTitle>Moderate Reviews</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-slate-600 space-y-3">
+                {(reviewData?.items || []).length === 0 && (
+                  <div>No reviews available yet.</div>
+                )}
+                {(reviewData?.items || []).map((review) => (
+                  <div key={review.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-slate-50 rounded-lg p-4">
+                    <div>
+                      <div className="font-semibold text-slate-900">{review.business_name}</div>
+                      <div className="text-xs text-slate-500">
+                        {review.reviewer_name} • {review.reviewer_email} • Rating {review.rating}
+                      </div>
+                      <div className="text-sm text-slate-700 mt-2">{review.review_text}</div>
+                    </div>
+                    <Button variant="destructive" onClick={() => api.delete(`/reviews/${review.id}`).then(() => queryClient.invalidateQueries({ queryKey: ['adminReviews'] }))}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Remove
+                    </Button>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>

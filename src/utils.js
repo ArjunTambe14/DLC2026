@@ -5,7 +5,12 @@ const pageRoutes = {
   Favorites: '/Favorites',
   DealsHub: '/DealsHub',
   Reports: '/Reports',
-  AdminPanel: '/AdminPanel'
+  AdminPanel: '/AdminPanel',
+  Auth: '/Auth',
+  About: '/About',
+  Contact: '/Contact',
+  Privacy: '/Privacy',
+  Terms: '/Terms'
 };
 
 export function createPageUrl(page) {

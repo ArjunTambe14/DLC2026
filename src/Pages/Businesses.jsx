@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { api } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
 import BusinessCard from '../Components/business/BusinessCard';
 import BusinessFilters from '../Components/business/BusinessFilters';
 import { Building2 } from 'lucide-react';
 import { Skeleton } from '@/Components/ui/skeleton';
+import { Button } from '@/Components/ui/button';
 
 export default function Businesses() {
   const [filters, setFilters] = useState({
     category: 'all',
-    sort: 'newest'
+    sort: 'newest',
+    openNow: false
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
 
   // Get URL params on mount
   useEffect(() => {
@@ -23,46 +26,31 @@ export default function Businesses() {
     if (search) setSearchTerm(search);
   }, []);
 
-  const { data: allBusinesses = [], isLoading } = useQuery({
-    queryKey: ['allBusinesses'],
-    queryFn: () => base44.entities.Business.list('-created_date', 100)
+  const { data, isLoading } = useQuery({
+    queryKey: ['allBusinesses', filters, searchTerm, page],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (filters.category !== 'all') params.set('category', filters.category);
+      if (filters.sort) params.set('sort', filters.sort);
+      if (searchTerm) params.set('search', searchTerm);
+      if (filters.openNow) params.set('openNow', 'true');
+      params.set('page', String(page));
+      params.set('pageSize', '9');
+      return api.get(`/businesses?${params.toString()}`);
+    }
   });
+
+  const businesses = data?.items || [];
+  const pagination = data?.pagination || { page: 1, totalPages: 1, total: 0 };
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+    setPage(1);
   };
 
-  // Filter and sort businesses
-  const filteredBusinesses = allBusinesses
-    .filter(business => {
-      // Category filter
-      if (filters.category !== 'all' && business.category !== filters.category) {
-        return false;
-      }
-
-      // Search filter
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        return (
-          business.name.toLowerCase().includes(search) ||
-          business.description?.toLowerCase().includes(search) ||
-          business.city?.toLowerCase().includes(search) ||
-          business.tags?.some(tag => tag.toLowerCase().includes(search))
-        );
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      if (filters.sort === 'rating') {
-        return b.averageRating - a.averageRating;
-      } else if (filters.sort === 'reviews') {
-        return b.reviewCount - a.reviewCount;
-      } else {
-        // newest
-        return new Date(b.created_date) - new Date(a.created_date);
-      }
-    });
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm]);
 
   return (
     <div className="min-h-screen bg-slate-50 py-12">
@@ -91,7 +79,7 @@ export default function Businesses() {
         {/* Results Count */}
         <div className="my-6">
           <p className="text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{filteredBusinesses.length}</span> businesses
+            Showing <span className="font-semibold text-slate-900">{pagination.total}</span> businesses
           </p>
         </div>
 
@@ -107,9 +95,9 @@ export default function Businesses() {
               </div>
             ))}
           </div>
-        ) : filteredBusinesses.length > 0 ? (
+        ) : businesses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBusinesses.map((business, index) => (
+            {businesses.map((business, index) => (
               <BusinessCard key={business.id} business={business} index={index} />
             ))}
           </div>
@@ -122,6 +110,28 @@ export default function Businesses() {
             <p className="text-slate-500">
               Try adjusting your filters or search terms
             </p>
+          </div>
+        )}
+
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-10">
+            <Button
+              variant="outline"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={pagination.page === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-slate-600">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <Button
+              variant="outline"
+              onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
+              disabled={pagination.page === pagination.totalPages}
+            >
+              Next
+            </Button>
           </div>
         )}
       </div>

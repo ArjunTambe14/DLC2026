@@ -4,7 +4,7 @@ import { Input } from "@/Components/ui/input";
 import { Search, Filter } from 'lucide-react';
 
 export default function BusinessFilters({ filters, onFilterChange, onSearchChange, searchTerm }) {
-  const categories = ['all', 'food', 'retail', 'services', 'health', 'entertainment', 'other'];
+  const categories = ['all', 'food', 'retail', 'services', 'health', 'auto', 'beauty', 'entertainment', 'home', 'other'];
   const sortOptions = [
     { value: 'rating', label: 'Highest Rated' },
     { value: 'reviews', label: 'Most Reviews' },
@@ -18,7 +18,7 @@ export default function BusinessFilters({ filters, onFilterChange, onSearchChang
         <h2 className="text-lg font-semibold text-slate-900">Filters & Sort</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -57,6 +57,17 @@ export default function BusinessFilters({ filters, onFilterChange, onSearchChang
             ))}
           </SelectContent>
         </Select>
+
+        {/* Open Now */}
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            checked={filters.openNow}
+            onChange={(e) => onFilterChange('openNow', e.target.checked)}
+          />
+          Open Now
+        </label>
       </div>
     </div>
   );

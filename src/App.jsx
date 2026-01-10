@@ -8,6 +8,11 @@ import Favorites from './Pages/Favorites.jsx';
 import DealsHub from './Pages/DealsHub.jsx';
 import Reports from './Pages/Reports.jsx';
 import AdminPanel from './Pages/AdminPanel.jsx';
+import Auth from './Pages/Auth.jsx';
+import About from './Pages/About.jsx';
+import Contact from './Pages/Contact.jsx';
+import Privacy from './Pages/Privacy.jsx';
+import Terms from './Pages/Terms.jsx';
 
 const pageNameByPath = {
   '/': 'Home',
@@ -16,7 +21,12 @@ const pageNameByPath = {
   '/Favorites': 'Favorites',
   '/DealsHub': 'DealsHub',
   '/Reports': 'Reports',
-  '/AdminPanel': 'AdminPanel'
+  '/AdminPanel': 'AdminPanel',
+  '/Auth': 'Auth',
+  '/About': 'About',
+  '/Contact': 'Contact',
+  '/Privacy': 'Privacy',
+  '/Terms': 'Terms'
 };
 
 function LayoutRoute({ children }) {
@@ -86,6 +96,46 @@ export default function App() {
         element={
           <LayoutRoute>
             <AdminPanel />
+          </LayoutRoute>
+        }
+      />
+      <Route
+        path="/Auth"
+        element={
+          <LayoutRoute>
+            <Auth />
+          </LayoutRoute>
+        }
+      />
+      <Route
+        path="/About"
+        element={
+          <LayoutRoute>
+            <About />
+          </LayoutRoute>
+        }
+      />
+      <Route
+        path="/Contact"
+        element={
+          <LayoutRoute>
+            <Contact />
+          </LayoutRoute>
+        }
+      />
+      <Route
+        path="/Privacy"
+        element={
+          <LayoutRoute>
+            <Privacy />
+          </LayoutRoute>
+        }
+      />
+      <Route
+        path="/Terms"
+        element={
+          <LayoutRoute>
+            <Terms />
           </LayoutRoute>
         }
       />
