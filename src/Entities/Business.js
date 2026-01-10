@@ -1,3 +1,4 @@
+// Purpose: Business entity schema for API typing.
 {
   "name": "Business",
   "type": "object",
