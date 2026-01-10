@@ -1,3 +1,4 @@
+// Purpose: Landing page highlights and featured businesses.
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
@@ -47,6 +48,7 @@ export default function Home() {
     }
   };
 
+  // Render the UI for this view.
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -139,19 +141,20 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-4 justify-items-center">
             {categories.map((category, index) => (
               <motion.div
                 key={category.value}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
+                className="w-full"
               >
                 <Link to={createPageUrl(`Businesses?category=${category.value}`)}>
-                  <div className="group cursor-pointer">
+                  <div className="group cursor-pointer mx-auto max-w-[140px]">
                     <div className={`bg-gradient-to-br ${category.color} rounded-2xl p-6 text-center transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl`}>
                       <div className="text-4xl mb-3">{category.icon}</div>
-                      <div className="font-semibold text-white">{category.name}</div>
+                      <div className="font-semibold text-white text-sm whitespace-nowrap">{category.name}</div>
                     </div>
                   </div>
                 </Link>
