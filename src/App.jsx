@@ -1,3 +1,4 @@
+// Purpose: Route map and layout wrapper for page navigation.
 import React from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './Layout.jsx';
@@ -7,7 +8,7 @@ import BusinessDetail from './Pages/BusinessDetail.jsx';
 import Favorites from './Pages/Favorites.jsx';
 import DealsHub from './Pages/DealsHub.jsx';
 import Reports from './Pages/Reports.jsx';
-import AdminPanel from './Pages/AdminPanel.jsx';
+import Admin from './Pages/Admin.jsx';
 import Auth from './Pages/Auth.jsx';
 import About from './Pages/About.jsx';
 import Contact from './Pages/Contact.jsx';
@@ -20,8 +21,8 @@ const pageNameByPath = {
   '/BusinessDetail': 'BusinessDetail',
   '/Favorites': 'Favorites',
   '/DealsHub': 'DealsHub',
-  '/Reports': 'Reports',
-  '/AdminPanel': 'AdminPanel',
+  '/reports': 'Reports',
+  '/admin': 'Admin',
   '/Auth': 'Auth',
   '/About': 'About',
   '/Contact': 'Contact',
@@ -33,6 +34,7 @@ function LayoutRoute({ children }) {
   const location = useLocation();
   const currentPageName = pageNameByPath[location.pathname] || 'Home';
 
+  // Render the UI for this view.
   return (
     <Layout currentPageName={currentPageName}>
       {children}
@@ -84,7 +86,7 @@ export default function App() {
         }
       />
       <Route
-        path="/Reports"
+        path="/reports"
         element={
           <LayoutRoute>
             <Reports />
@@ -92,10 +94,10 @@ export default function App() {
         }
       />
       <Route
-        path="/AdminPanel"
+        path="/admin"
         element={
           <LayoutRoute>
-            <AdminPanel />
+            <Admin />
           </LayoutRoute>
         }
       />

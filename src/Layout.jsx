@@ -30,11 +30,11 @@ export default function Layout({ children, currentPageName }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
       <style>{`
         :root {
-          --primary-blue: #1e40af;
-          --primary-orange: #f97316;
-          --primary-green: #059669;
-          --text-dark: #1e293b;
-          --text-light: #64748b;
+          --primary-blue: #237ca7;
+          --primary-orange: #f18316;
+          --primary-navy: #02142c;
+          --text-dark: #02142c;
+          --text-light: #475569;
         }
       `}</style>
 
@@ -43,13 +43,15 @@ export default function Layout({ children, currentPageName }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link to={createPageUrl('Home')} className="flex items-center gap-2 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center transform group-hover:scale-105 transition-transform shadow-lg">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
+            <Link to={createPageUrl('Home')} className="flex items-center gap-3 group">
+              <img
+                src="/src/pictures/Logo.png"
+                alt="StreetPulse logo"
+                className="h-10 w-auto"
+              />
               <div className="hidden sm:block">
                 <div className="text-xl font-bold text-slate-900">StreetPulse</div>
-                <div className="text-xs text-blue-600 font-medium -mt-1">Local Business Discovery</div>
+                <div className="text-xs text-[#237ca7] font-medium -mt-1">Local Business Discovery</div>
               </div>
             </Link>
 
@@ -93,7 +95,7 @@ export default function Layout({ children, currentPageName }) {
               ) : (
                 <Link
                   to={createPageUrl('Auth')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                  className="px-4 py-2 bg-[#f18316] text-white rounded-lg font-medium hover:bg-[#d96f12] transition-colors shadow-sm"
                 >
                   Sign In
                 </Link>
@@ -143,7 +145,7 @@ export default function Layout({ children, currentPageName }) {
               ) : (
                 <Link
                   to={createPageUrl('Auth')}
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                  className="w-full px-4 py-3 bg-[#f18316] text-white rounded-lg font-medium hover:bg-[#d96f12]"
                 >
                   Sign In
                 </Link>
@@ -159,12 +161,12 @@ export default function Layout({ children, currentPageName }) {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white mt-16">
+      <footer className="bg-[#02142c] text-white mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="w-6 h-6 text-blue-400" />
+                <Sparkles className="w-6 h-6 text-[#237ca7]" />
                 <div className="font-bold text-lg">StreetPulse</div>
               </div>
               <p className="text-slate-400 text-sm">
@@ -187,7 +189,7 @@ export default function Layout({ children, currentPageName }) {
               </p>
             </div>
           </div>
-          <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-500">
+          <div className="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-300">
             © 2026 StreetPulse. Built for the FBLA Coding & Programming event.
           </div>
         </div>

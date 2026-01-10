@@ -1,3 +1,4 @@
+// Purpose: Search and filter controls for businesses.
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/Components/ui/select";
 import { Input } from "@/Components/ui/input";
@@ -11,6 +12,7 @@ export default function BusinessFilters({ filters, onFilterChange, onSearchChang
     { value: 'newest', label: 'Newest' }
   ];
 
+  // Render the UI for this view.
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
       <div className="flex items-center gap-2 mb-4">
