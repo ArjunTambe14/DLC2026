@@ -1,3 +1,4 @@
+// Purpose: Legacy admin panel retained for reference.
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
@@ -73,6 +74,7 @@ export default function AdminPanel() {
   const deals = dealData?.items || [];
 
   if (loading) {
+    // Render the UI for this view.
     return (
       <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
         <div className="text-center">
