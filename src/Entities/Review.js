@@ -1,3 +1,4 @@
+// Purpose: Review entity schema for API typing.
 {
   "name": "Review",
   "type": "object",
