@@ -1,3 +1,4 @@
+// Purpose: Aggregated deals view for local businesses.
 import React, { useState } from 'react';
 import { api } from '@/api/client';
 import { useQuery } from '@tanstack/react-query';
@@ -39,6 +40,7 @@ export default function DealsHub() {
     }
   };
 
+  // Render the UI for this view.
   return (
     <div className="min-h-screen bg-slate-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
