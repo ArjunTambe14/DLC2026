@@ -1,3 +1,4 @@
+// Purpose: Detailed view with reviews, deals, and actions.
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -130,6 +131,7 @@ export default function BusinessDetail() {
   };
 
   if (isLoading || !business) {
+    // Render the UI for this view.
     return (
       <div className="min-h-screen bg-slate-50 py-12">
         <div className="max-w-7xl mx-auto px-4">
