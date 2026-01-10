@@ -1,253 +1,201 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { BarChart3, Download, TrendingUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { Button } from '@/Components/ui/button';
-import { api, getToken } from '@/api/client';
-import { useAuth } from '@/context/AuthContext.jsx';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+// Purpose: Presentable report page with filters and CSV export.
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
-const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#0ea5e9', '#14b8a6'];
+const API_BASE = 'http://localhost:8000';
+const CATEGORY_OPTIONS = ['All', 'Food', 'Retail', 'Services'];
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5174/api';
-
-const downloadCsv = async (type) => {
-  const token = getToken();
-  const response = await fetch(`${API_URL}/reports/${type}.csv`, {
-    headers: { Authorization: token ? `Bearer ${token}` : '' }
+function downloadCsv(rows) {
+  // Generate CSV from the current filtered report rows.
+  const headers = ['Name', 'Category', 'Avg Rating', 'Review Count', 'Deal'];
+  const lines = [headers.join(',')];
+  rows.forEach((row) => {
+    const values = [
+      row.name,
+      row.category,
+      row.avg_rating.toFixed(2),
+      row.review_count,
+      row.deal || ''
+    ].map((value) => `"${String(value).replace(/"/g, '""')}"`);
+    lines.push(values.join(','));
   });
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${type}.csv`;
+  link.download = 'business-report.csv';
   link.click();
-};
+  URL.revokeObjectURL(url);
+}
 
 export default function Reports() {
-  const { user, loading } = useAuth();
+  const [category, setCategory] = useState('All');
+  const [minRating, setMinRating] = useState('0');
+  const [sort, setSort] = useState('rating');
+  const [rows, setRows] = useState([]);
+  const [status, setStatus] = useState('');
 
-  const { data: topRated } = useQuery({
-    queryKey: ['reports', 'top-rated'],
-    queryFn: () => api.get('/reports/top-rated?minReviews=3'),
-    enabled: user?.role === 'admin'
-  });
-
-  const { data: mostReviewed } = useQuery({
-    queryKey: ['reports', 'most-reviewed'],
-    queryFn: () => api.get('/reports/most-reviewed'),
-    enabled: user?.role === 'admin'
-  });
-
-  const { data: favorites } = useQuery({
-    queryKey: ['reports', 'favorites'],
-    queryFn: () => api.get('/reports/favorites'),
-    enabled: user?.role === 'admin'
-  });
-
-  const { data: deals } = useQuery({
-    queryKey: ['reports', 'deals'],
-    queryFn: () => api.get('/reports/deals'),
-    enabled: user?.role === 'admin'
-  });
-
-  const { data: categories } = useQuery({
-    queryKey: ['reports', 'category-distribution'],
-    queryFn: () => api.get('/reports/category-distribution'),
-    enabled: user?.role === 'admin'
-  });
-
-  const { data: weekly } = useQuery({
-    queryKey: ['reports', 'weekly-activity'],
-    queryFn: () => api.get('/reports/weekly-activity'),
-    enabled: user?.role === 'admin'
-  });
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || user.role !== 'admin') {
-    return (
-      <div className="min-h-screen bg-slate-50 py-12 flex items-center justify-center">
-        <div className="text-center bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
-          <BarChart3 className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Admin Access Required</h2>
-          <p className="text-slate-600">Sign in with an admin account to view reports.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const categoryData = categories?.items || [];
-  const weeklyDataMap = new Map();
-  (weekly?.items || []).forEach((row) => {
-    if (!weeklyDataMap.has(row.week)) {
-      weeklyDataMap.set(row.week, { week: row.week });
+  const summary = useMemo(() => {
+    // Summary stats are derived from the same rows shown in the table.
+    if (!rows.length) {
+      return { total: 0, averageRating: 0, mostCommon: 'N/A' };
     }
-    weeklyDataMap.get(row.week)[row.metric] = row.count;
-  });
-  const weeklyData = Array.from(weeklyDataMap.values()).sort((a, b) => a.week.localeCompare(b.week));
+    const total = rows.length;
+    const ratingSum = rows.reduce((sum, row) => sum + row.avg_rating, 0);
+    const averageRating = ratingSum / total;
+    const categoryCounts = rows.reduce((acc, row) => {
+      acc[row.category] = (acc[row.category] || 0) + 1;
+      return acc;
+    }, {});
+    const mostCommon = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0][0];
+    return { total, averageRating, mostCommon };
+  }, [rows]);
 
+  async function loadReport(event) {
+    event.preventDefault();
+    // Build a query that mirrors the report filter controls.
+    setStatus('Loading report...');
+    const params = new URLSearchParams();
+    if (category !== 'All') params.set('category', category);
+    if (minRating !== '') params.set('min_rating', minRating);
+    params.set('sort', sort);
+
+    try {
+      const res = await fetch(`${API_BASE}/report/businesses?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to load report.');
+      }
+      setRows(data);
+      setStatus('');
+    } catch (error) {
+      setStatus(error.message);
+      setRows([]);
+    }
+  }
+
+  function handleRatingChange(value) {
+    const numeric = Math.max(0, Math.min(5, Number(value)));
+    setMinRating(Number.isNaN(numeric) ? '' : String(numeric));
+  }
+
+  // Render the UI for this view.
   return (
     <div className="min-h-screen bg-slate-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <BarChart3 className="w-8 h-8 text-blue-600" />
-              <h1 className="text-4xl font-bold text-slate-900">Analytics & Reports</h1>
-            </div>
-            <p className="text-lg text-slate-600">Admin insights for performance and growth.</p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900">Business Report</h1>
+          <p className="text-slate-600">Presentable summary for judges and stakeholders.</p>
+        </div>
+
+        <form onSubmit={loadReport} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label className="text-sm text-slate-700">
+              Category
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
+              >
+                {CATEGORY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm text-slate-700">
+              Minimum rating (0-5)
+              <input
+                type="number"
+                min="0"
+                max="5"
+                step="0.1"
+                value={minRating}
+                onChange={(event) => handleRatingChange(event.target.value)}
+                className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
+              />
+            </label>
+
+            <label className="text-sm text-slate-700">
+              Sort by
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+                className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
+              >
+                <option value="rating">Rating (desc)</option>
+                <option value="reviews">Review count (desc)</option>
+                <option value="name">Name (asc)</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+              Generate report
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadCsv(rows)}
+              className="px-4 py-2 border border-slate-200 rounded-lg"
+              disabled={!rows.length}
+            >
+              Export CSV
+            </button>
+          </div>
+          {status && <p className="text-sm text-slate-600 mt-3">{status}</p>}
+        </form>
+
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-2">Summary</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-700">
+            <div>Total businesses: <span className="font-semibold">{summary.total}</span></div>
+            <div>Average rating: <span className="font-semibold">{summary.averageRating.toFixed(2)}</span></div>
+            <div>Most common category: <span className="font-semibold">{summary.mostCommon}</span></div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <CardTitle>Category Distribution</CardTitle>
-              <Button variant="outline" onClick={() => downloadCsv('category-distribution')}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={categoryData} dataKey="business_count" nameKey="category" outerRadius={110} label>
-                    {categoryData.map((entry, index) => (
-                      <Cell key={entry.category} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <CardTitle>Weekly Activity</CardTitle>
-              <Button variant="outline" onClick={() => downloadCsv('weekly-activity')}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={weeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="users" stroke="#3b82f6" />
-                  <Line type="monotone" dataKey="reviews" stroke="#10b981" />
-                  <Line type="monotone" dataKey="favorites" stroke="#ef4444" />
-                  <Line type="monotone" dataKey="deal_interactions" stroke="#f59e0b" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <CardTitle>Top Rated Businesses</CardTitle>
-              <Button variant="outline" onClick={() => downloadCsv('top-rated')}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {(topRated?.items || []).map((row, index) => (
-                <div key={row.name} className="flex items-center justify-between bg-slate-50 rounded-lg p-4">
-                  <div>
-                    <div className="font-semibold text-slate-900">#{index + 1} {row.name}</div>
-                    <div className="text-sm text-slate-600">{row.category}</div>
-                  </div>
-                  <div className="text-sm text-slate-700">{row.average_rating} ({row.review_count} reviews)</div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <CardTitle>Most Reviewed Businesses</CardTitle>
-              <Button variant="outline" onClick={() => downloadCsv('most-reviewed')}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {(mostReviewed?.items || []).map((row, index) => (
-                <div key={row.name} className="flex items-center justify-between bg-slate-50 rounded-lg p-4">
-                  <div>
-                    <div className="font-semibold text-slate-900">#{index + 1} {row.name}</div>
-                    <div className="text-sm text-slate-600">{row.category}</div>
-                  </div>
-                  <div className="text-sm text-slate-700">{row.review_count} reviews</div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <CardTitle>Favorites Leaderboard</CardTitle>
-              <Button variant="outline" onClick={() => downloadCsv('favorites')}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {(favorites?.items || []).map((row, index) => (
-                <div key={row.name} className="flex items-center justify-between bg-slate-50 rounded-lg p-4">
-                  <div>
-                    <div className="font-semibold text-slate-900">#{index + 1} {row.name}</div>
-                    <div className="text-sm text-slate-600">{row.category}</div>
-                  </div>
-                  <div className="text-sm text-slate-700">{row.favorite_count} favorites</div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <CardTitle>Top Deals</CardTitle>
-              <Button variant="outline" onClick={() => downloadCsv('deals')}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={deals?.items || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="title" hide />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="copy_count" fill="#f59e0b" />
-                  <Bar dataKey="view_count" fill="#0ea5e9" />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="text-xs text-slate-500 mt-2 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Most redeemed/clicked deals (copies vs views)
-              </div>
-            </CardContent>
-          </Card>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Report Table</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase text-slate-500 border-b">
+                <tr>
+                  <th className="py-2">Name</th>
+                  <th className="py-2">Category</th>
+                  <th className="py-2">Avg Rating</th>
+                  <th className="py-2">Review Count</th>
+                  <th className="py-2">Deal</th>
+                  <th className="py-2">View</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="border-b last:border-0">
+                    <td className="py-2 font-medium text-slate-900">{row.name}</td>
+                    <td className="py-2">{row.category}</td>
+                    <td className="py-2">{row.avg_rating.toFixed(2)}</td>
+                    <td className="py-2">{row.review_count}</td>
+                    <td className="py-2">{row.deal || '-'}</td>
+                    <td className="py-2">
+                      <Link
+                        to={`/BusinessDetail?id=${row.id}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+                {!rows.length && (
+                  <tr>
+                    <td colSpan="6" className="py-6 text-center text-slate-500">
+                      Generate a report to see results.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
